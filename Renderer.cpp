@@ -1,22 +1,38 @@
 #include "Renderer.h"
-#include "Grid.h" // For the render method parameter
-#include <iostream> // For debug messages
+#include "Grid.h"
+#include "MaterialRegistry.h"
+#include "Window.h" // Required for Window::draw
 
-Renderer::Renderer(unsigned int width, unsigned int height)
-    : m_width(width), m_height(height), m_render_target(nullptr) {
-    std::cout << "Renderer: Constructor called with width=" << width << ", height=" << height << std::endl;
-    // Initialize rendering resources here (e.g., shaders, framebuffers).
-    // m_render_target is a placeholder for now.
+// Constructor
+Renderer::Renderer(const MaterialRegistry& materialRegistry)
+    : m_materialRegistry(materialRegistry) {
+    m_vertices.setPrimitiveType(sf::Points);
+    // m_materialRegistry is initialized in the member initializer list
 }
 
+// Destructor - SFML resources like sf::VertexArray are managed automatically
 Renderer::~Renderer() {
-    std::cout << "Renderer: Destructor called." << std::endl;
-    // Clean up rendering resources.
+    // No explicit cleanup needed for m_vertices
 }
 
-void Renderer::render(const Grid& grid) {
-    // std::cout << "Renderer: render called." << std::endl; // Can be too verbose
-    // Actual rendering logic will go here.
-    // This method would iterate over the grid data and draw it to the screen.
-    // For example, using OpenGL, SFML, or another graphics library.
+// Render the grid to the window
+void Renderer::render(const Grid& grid, Window& window) {
+    m_vertices.clear(); // Clear vertices from the previous frame
+
+    unsigned int gridWidth = grid.getWidth();
+    unsigned int gridHeight = grid.getHeight();
+
+    for (unsigned int y = 0; y < gridHeight; ++y) {
+        for (unsigned int x = 0; x < gridWidth; ++x) {
+            MaterialID materialID = grid.getMaterialID(x, y);
+
+            // Only draw if the cell is not empty
+            if (materialID != MaterialID::Empty) { // Assuming MaterialID::Empty is defined
+                sf::Color color = m_materialRegistry.getColor(materialID);
+                m_vertices.append(sf::Vertex(sf::Vector2f(static_cast<float>(x), static_cast<float>(y)), color));
+            }
+        }
+    }
+
+    window.draw(m_vertices); // Draw all collected vertices
 }

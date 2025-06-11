@@ -1,19 +1,20 @@
 #pragma once
 
-// Forward declaration of Grid to avoid circular dependency
-class Grid;
+#include <SFML/Graphics.hpp> // Added this line
+#include "Window.h"          // Added this line
+#include "Grid.h"            // Added this line
+#include "MaterialRegistry.h" // Added this line
+
 
 class Renderer {
 public:
-    Renderer(unsigned int width, unsigned int height);
+    Renderer(const MaterialRegistry& materialRegistry); // Changed constructor
     ~Renderer();
 
-    void render(const Grid& grid);
+    void render(const Grid& grid, Window& window); // Changed signature
     // Add other rendering-related methods here
 
 private:
-    unsigned int m_width;
-    unsigned int m_height;
-    // Placeholder for rendering resources
-    void* m_render_target;
+    sf::VertexArray m_vertices; // Replaced m_render_target
+    const MaterialRegistry& m_materialRegistry; // Added member
 };

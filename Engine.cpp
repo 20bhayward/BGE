@@ -29,7 +29,7 @@ Engine::Engine() : m_isRunning(true) {
     // Or, if Window::create needs to be called first:
     // m_window->create(800, 600, "Title");
     // m_renderer = std::make_unique<Renderer>(800, 600);
-    m_renderer = std::make_unique<Renderer>(800, 600); // Placeholder dimensions
+    m_renderer = std::make_unique<Renderer>(*m_materialRegistry); // Pass MaterialRegistry
 
     m_uiManager = std::make_unique<UIManager>();
 
@@ -90,8 +90,8 @@ void Engine::run() {
             m_grid->update(deltaTime);
         }
 
-        if (m_renderer && m_grid) {
-            m_renderer->render(*m_grid);
+        if (m_renderer && m_grid && m_window) { // Ensure window is also valid
+            m_renderer->render(*m_grid, *m_window); // Pass Grid and Window
         }
 
         // If UIManager has its own rendering pass (e.g., for ImGui)

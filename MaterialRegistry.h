@@ -1,12 +1,15 @@
 #pragma once
 
 #include <string>
-#include <vector> // Or some other suitable container
+#include <vector>
+#include <SFML/Graphics.hpp> // Added for sf::Color
+#include "Grid.h"            // Added for MaterialID
 
-// Placeholder for Material type
+// Material struct now includes color
 struct Material {
     std::string name;
-    // Add other material properties here (e.g., color, density, etc.)
+    sf::Color color; // Added color member
+    // Add other material properties here (e.g., density, etc.)
 };
 
 class MaterialRegistry {
@@ -14,10 +17,20 @@ public:
     MaterialRegistry();
     ~MaterialRegistry();
 
-    void registerMaterial(const Material& material);
-    const Material* getMaterial(const std::string& name) const;
+    // registerMaterial might need to change to accept MaterialID and sf::Color
+    void registerMaterial(MaterialID id, const std::string& name, sf::Color color);
+    // getMaterial might change or be supplemented by a method using MaterialID
+    const Material* getMaterial(const std::string& name) const; // Kept for now
+    sf::Color getColor(MaterialID id) const; // Added method
+
     // Add other material management methods here
 
 private:
+    // Assuming MaterialID can be used as an index for simplicity for now.
+    // This implies MaterialID values are 0, 1, 2...
+    // A std::map<MaterialID, Material> might be more robust.
     std::vector<Material> m_materials;
+    // To make getColor efficient, we might need a direct mapping from MaterialID to color.
+    // For now, we can store Materials in the vector such that their index matches the MaterialID.
+    // This requires careful registration.
 };

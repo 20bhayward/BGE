@@ -4,6 +4,9 @@ project(SandSimEngine CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# Find SFML package and its components
+find_package(SFML 3 REQUIRED COMPONENTS graphics window system)
+
 # Add source files for the executable
 add_executable(SandSim
     main.cpp
@@ -24,5 +27,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Optional: Link against libraries if needed in the future (e.g., for graphics, windowing)
-# target_link_libraries(SandSim PRIVATE some_library)
+# Link against SFML libraries
+target_link_libraries(SandSim PRIVATE SFML::graphics SFML::window SFML::system)
+
+# Optional: Link against other libraries if needed in the future
+# target_link_libraries(SandSim PRIVATE some_other_library)
