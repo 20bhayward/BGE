@@ -1,23 +1,32 @@
 #pragma once
 
 #include <string>
-#include <vector> // Or some other suitable container
+#include <vector>
+#include <SFML/Graphics/Color.hpp> // Added for sf::Color
 
-// Placeholder for Material type
-struct Material {
+enum class MaterialID { Empty, Sand, Rock, Water };
+
+struct MaterialDefinition {
+    MaterialID id;
     std::string name;
-    // Add other material properties here (e.g., color, density, etc.)
+    sf::Color color;
+    float density;
 };
+
+// Color Constants
+const sf::Color COLOR_EMPTY = sf::Color::Black;
+const sf::Color COLOR_SAND = sf::Color::Yellow;
+const sf::Color COLOR_ROCK = sf::Color(128, 128, 128); // Gray
+const sf::Color COLOR_WATER = sf::Color::Blue;
 
 class MaterialRegistry {
 public:
     MaterialRegistry();
     ~MaterialRegistry();
 
-    void registerMaterial(const Material& material);
-    const Material* getMaterial(const std::string& name) const;
+    const MaterialDefinition& getMaterial(MaterialID id) const;
     // Add other material management methods here
 
 private:
-    std::vector<Material> m_materials;
+    std::vector<MaterialDefinition> m_materials; // Changed Material to MaterialDefinition
 };
