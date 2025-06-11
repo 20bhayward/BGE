@@ -1,38 +1,31 @@
 #include "MaterialRegistry.h"
-#include <iostream> // For debug messages
-#include <algorithm> // For std::find_if
+// Removed iostream and algorithm includes as they are no longer needed.
 
 MaterialRegistry::MaterialRegistry() {
-    std::cout << "MaterialRegistry: Constructor called." << std::endl;
-    // Initialize default materials or leave empty.
+    m_materials.clear(); // Clear existing materials, if any.
+    // Resize to hold all MaterialID types. The size should be dynamic if more materials are added.
+    // For now, hardcoding based on the current number of MaterialIDs.
+    // Consider using MaterialID::Count or similar if the enum gets larger.
+    m_materials.resize(4);
+
+    m_materials[static_cast<size_t>(MaterialID::Empty)] = {MaterialID::Empty, "Empty", COLOR_EMPTY, 0.0f};
+    m_materials[static_cast<size_t>(MaterialID::Sand)] = {MaterialID::Sand, "Sand", COLOR_SAND, 1.5f};
+    m_materials[static_cast<size_t>(MaterialID::Rock)] = {MaterialID::Rock, "Rock", COLOR_ROCK, 2.0f};
+    m_materials[static_cast<size_t>(MaterialID::Water)] = {MaterialID::Water, "Water", COLOR_WATER, 1.0f};
 }
 
 MaterialRegistry::~MaterialRegistry() {
-    std::cout << "MaterialRegistry: Destructor called." << std::endl;
-    // Clean up any resources if necessary.
+    // Destructor remains the same, no specific cleanup needed for m_materials unless it holds pointers.
 }
 
-void MaterialRegistry::registerMaterial(const Material& material) {
-    // Check if material with the same name already exists to prevent duplicates
-    auto it = std::find_if(m_materials.begin(), m_materials.end(),
-                           [&](const Material& m) { return m.name == material.name; });
-
-    if (it == m_materials.end()) {
-        m_materials.push_back(material);
-        std::cout << "MaterialRegistry: Registered material \"" << material.name << "\"." << std::endl;
-    } else {
-        std::cout << "MaterialRegistry: Material with name \"" << material.name << "\" already exists. Not registering." << std::endl;
+const MaterialDefinition& MaterialRegistry::getMaterial(MaterialID id) const {
+    size_t index = static_cast<size_t>(id);
+    if (index < m_materials.size()) {
+        return m_materials[index];
     }
-}
-
-const Material* MaterialRegistry::getMaterial(const std::string& name) const {
-    auto it = std::find_if(m_materials.begin(), m_materials.end(),
-                           [&](const Material& m) { return m.name == name; });
-
-    if (it != m_materials.end()) {
-        return &(*it);
-    } else {
-        std::cout << "MaterialRegistry: Material with name \"" << name << "\" not found." << std::endl;
-        return nullptr;
-    }
+    // Fallback for invalid ID. This case should ideally not be reached if MaterialIDs are used correctly.
+    // Returning Rock as a default, but this could also be an assertion or throw an error.
+    // It might be better to return a const reference to a static default MaterialDefinition
+    // or handle the error more explicitly depending on game's error handling strategy.
+    return m_materials[static_cast<size_t>(MaterialID::Rock)];
 }
