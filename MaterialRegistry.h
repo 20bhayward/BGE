@@ -10,7 +10,23 @@ struct Material {
     std::string name;
     sf::Color color; // Added color member
     // Add other material properties here (e.g., density, etc.)
+=======
+#include <SFML/Graphics/Color.hpp> // Added for sf::Color
+
+enum class MaterialID { Empty, Sand, Rock, Water };
+
+struct MaterialDefinition {
+    MaterialID id;
+    std::string name;
+    sf::Color color;
+    float density;
 };
+
+// Color Constants
+const sf::Color COLOR_EMPTY = sf::Color::Black;
+const sf::Color COLOR_SAND = sf::Color::Yellow;
+const sf::Color COLOR_ROCK = sf::Color(128, 128, 128); // Gray
+const sf::Color COLOR_WATER = sf::Color::Blue;
 
 class MaterialRegistry {
 public:
@@ -33,4 +49,10 @@ private:
     // To make getColor efficient, we might need a direct mapping from MaterialID to color.
     // For now, we can store Materials in the vector such that their index matches the MaterialID.
     // This requires careful registration.
+=======
+    const MaterialDefinition& getMaterial(MaterialID id) const;
+    // Add other material management methods here
+  
+    std::vector<MaterialDefinition> m_materials; // Changed Material to MaterialDefinition
+
 };

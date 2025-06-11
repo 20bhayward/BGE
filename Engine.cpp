@@ -19,8 +19,8 @@ Engine::Engine() : m_isRunning(true) {
 
     m_materialRegistry = std::make_unique<MaterialRegistry>();
 
-    // Assuming Grid takes width and height
-    m_grid = std::make_unique<Grid>(100, 100); // Example dimensions
+    // Assuming Grid takes width and height, and now MaterialRegistry
+    m_grid = std::make_unique<Grid>(100, 100, *m_materialRegistry); // Example dimensions, added m_materialRegistry
 
     // Assuming Renderer takes width and height, or a reference to the window
     // If Renderer needs window dimensions, we might need to get them from m_window
@@ -88,6 +88,7 @@ void Engine::run() {
 
         if (m_grid) {
             m_grid->update(deltaTime);
+            m_grid->swapBuffers(); // Add this line
         }
 
         if (m_renderer && m_grid && m_window) { // Ensure window is also valid
