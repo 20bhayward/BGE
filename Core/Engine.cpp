@@ -10,6 +10,7 @@
 #include "Input/InputManager.h"
 #include "../Simulation/SimulationWorld.h"
 #include "../Renderer/Renderer.h"
+#include "../Renderer/ParticleSystem.h" // Added for ParticleSystem service
 #include "../Audio/AudioSystem.h"
 #include "../AssetPipeline/AssetManager.h"
 #include "UI/UISystem.h"
@@ -150,6 +151,15 @@ void Engine::RegisterCoreServices() {
         serviceLocator.RegisterService<UISystem>(ui);
         BGE_LOG_INFO("Engine", "UISystem service registered");
     }
+
+  // Initialize and register ParticleSystem
+  auto particleSystem = std::make_shared<ParticleSystem>();
+  if (particleSystem && particleSystem->Initialize()) { // Default pool size
+      serviceLocator.RegisterService<ParticleSystem>(particleSystem);
+      BGE_LOG_INFO("Engine", "ParticleSystem service registered");
+  } else {
+      BGE_LOG_ERROR("Engine", "Failed to initialize or create ParticleSystem service");
+  }
 }
 
 void Engine::Shutdown() {
@@ -290,6 +300,11 @@ void Engine::Update(float deltaTime) {
     if (auto audio = serviceLocator.GetService<AudioSystem>()) {
         audio->Update(deltaTime);
     }
+
+  // Update Particle System
+  if (auto ps = serviceLocator.GetService<ParticleSystem>()) {
+      ps->Update(deltaTime);
+  }
 }
 
 void Engine::Render() {
@@ -315,6 +330,9 @@ void Engine::Render() {
         if (m_application) {
             m_application->Render();
         }
+
+        // Render particles (via Renderer facade)
+        renderer->RenderParticles();
         
         // End UI frame and render UI
         if (ui) {

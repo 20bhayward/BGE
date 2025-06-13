@@ -5,6 +5,7 @@
 #include "Input/InputManager.h"
 #include "../AssetPipeline/AssetManager.h"
 #include "UI/UISystem.h"
+#include "../Renderer/ParticleSystem.h" // Include ParticleSystem header
 
 namespace BGE {
 
@@ -32,6 +33,10 @@ std::shared_ptr<AssetManager> GetAssets() {
 
 std::shared_ptr<UISystem> GetUI() {
     return ServiceLocator::Instance().GetService<UISystem>();
+}
+
+std::shared_ptr<ParticleSystem> GetParticles() {
+    return ServiceLocator::Instance().GetService<ParticleSystem>();
 }
 
 } // namespace Services

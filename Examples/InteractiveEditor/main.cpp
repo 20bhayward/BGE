@@ -11,6 +11,10 @@
 #include "../../Core/UI/MaterialEditorUI.h"
 #include "../../Simulation/SimulationWorld.h"
 #include "../../Simulation/Materials/MaterialSystem.h"
+#include "../../Core/Input/InputManager.h" // For InputManager and Keys
+#include "../../Core/Input/Keyboard.h"    // For Keys::K
+#include "../../Renderer/ParticleSystem.h" // For ParticleSystem type if needed, or just Services
+// Core/Services.h is already included
 
 using namespace BGE;
 
@@ -126,6 +130,22 @@ public:
                 m_world->Clear();
                 BGE_LOG_INFO("InteractiveEditor", "World cleared");
                 break;
+            case Keys::K: // Or use 75 if Keys::K is not defined/found
+            {
+                BGE_LOG_INFO("InteractiveEditorApp", "K key pressed - creating sparks!");
+                auto inputManager = Services::GetInput();
+                auto particleSystem = Services::GetParticles();
+
+                if (inputManager && particleSystem) {
+                    float mouseX = 0.0f, mouseY = 0.0f;
+                    inputManager->GetMousePosition(mouseX, mouseY);
+                    particleSystem->CreateSparks(BGE::Vector2(mouseX, mouseY), 25);
+                } else {
+                    if (!inputManager) BGE_LOG_ERROR("InteractiveEditorApp", "InputManager service not found for sparks.");
+                    if (!particleSystem) BGE_LOG_ERROR("InteractiveEditorApp", "ParticleSystem service not found for sparks.");
+                }
+                break;
+            }
         }
     }
 
