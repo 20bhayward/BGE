@@ -29,6 +29,10 @@ add_library(BGESimulation STATIC
     World/ChunkManager.cpp
     World/WorldGenerator.h
     World/WorldGenerator.cpp
+    
+    # Systems
+    Systems/MovementSystem.h
+    Systems/MovementSystem.cpp
 )
 
 target_include_directories(BGESimulation PUBLIC . ../ThirdParty)

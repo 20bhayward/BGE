@@ -1,5 +1,5 @@
-#include "Core/SystemManager.h"
-#include "Core/ISystem.h" // Technically included via SystemManager.h, but good for clarity.
+#include "SystemManager.h"
+#include "ISystem.h" // Technically included via SystemManager.h, but good for clarity.
 
 namespace BGE
 {

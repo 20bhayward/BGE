@@ -1,5 +1,5 @@
-#include "Simulation/Systems/MovementSystem.h" // Adjust path if necessary
-#include "Core/Entity.h" // For BGE::Entity, used when iterating
+#include "MovementSystem.h" // Local include
+#include "../../Core/Entity.h" // For BGE::Entity, used when iterating
 
 // Potentially needed for logging or assertions, if used.
 // #include "Core/Logger.h"
