@@ -321,6 +321,11 @@ void Engine::Update(float deltaTime) {
     if (auto ps = serviceLocator.GetService<ParticleSystem>()) {
         ps->Update(deltaTime);
     }
+
+    // Update Asset Manager (for hot-reloading)
+    if (auto assets = serviceLocator.GetService<AssetManager>()) {
+        assets->Update();
+    }
 }
 
 void Engine::Render() {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <cstdint>
 #include "../Core/Math/Matrix4.h" // For BGE::Matrix4
 #include "../Core/Platform/Window.h" // For BGE::Window
 
@@ -9,8 +10,7 @@
 
 // Forward declarations
 namespace BGE {
-    // class PixelCamera; // No longer needed due to include
-    // class ParticleSystem; // No longer needed due to include
+    class SimulationWorld;
 }
 
 namespace BGE {
@@ -26,26 +26,26 @@ public:
     void BeginFrame();
     void EndFrame();
 
-    // Temporary: until world rendering is fully handled by this Renderer
+    // World rendering
     void RenderWorld(class SimulationWorld* world);
 
     // Particle system methods
-    // void UpdateParticles(float deltaTime); // Will be called by Engine directly
     void RenderParticles();
 
     // Primitive drawing methods (used by ParticleSystem for now)
     void DrawPrimitivePixel(int x, int y, const Vector3& color);
-    // void DrawPrimitiveQuad(const Vector2& position, const Vector2& size, const Vector3& color);
 
-    // Matrix4 GetViewMatrix() const; // This might be specific to PixelCamera
+    // Texture management for asset pipeline
+    uint32_t CreateTexture(int width, int height, int channels, const void* data);
+    void UpdateTexture(uint32_t textureId, int width, int height, int channels, const void* data);
+    void DeleteTexture(uint32_t textureId);
 
-    PixelCamera* GetPixelCamera() const { return m_pixelCamera.get(); } // Ensure this is uncommented
-    // ParticleSystem* GetParticleSystem() const; // Removed
+    PixelCamera* GetPixelCamera() const { return m_pixelCamera.get(); }
 
 private:
     Window* m_window = nullptr;
-    std::unique_ptr<PixelCamera> m_pixelCamera; // Ensure this is uncommented
-    // std::unique_ptr<ParticleSystem> m_particleSystem; // Removed
+    std::unique_ptr<PixelCamera> m_pixelCamera;
+    uint32_t m_nextTextureId = 1; // Simple way to generate unique IDs for placeholder
 
     // Placeholder for actual rendering context or device
     void* m_renderContext = nullptr;

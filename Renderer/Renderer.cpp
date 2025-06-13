@@ -3,8 +3,6 @@
 #include "ParticleSystem.h" // Keep for ParticleSystem::Render interface potentially
 #include "../Core/Logger.h"
 #include "../Core/ServiceLocator.h" // For ServiceLocator
-// Temporary include for SimulationWorld, if RenderWorld needs it.
-// #include "../Simulation/SimulationWorld.h"
 
 namespace BGE {
 
@@ -26,9 +24,6 @@ bool Renderer::Initialize(Window* window) {
     m_pixelCamera = std::make_unique<PixelCamera>();
     if (m_pixelCamera) {
         // Example: Set projection based on window size if available
-        // This assumes m_window is valid and GetWidth/GetHeight exist.
-        // If GetWidth/GetHeight are not on BGE::Window, this call needs adjustment
-        // or PixelCamera::SetProjection must be called from somewhere else (e.g. Engine or App on resize)
         if (m_window) {
             m_pixelCamera->SetProjection(static_cast<float>(m_window->GetWidth()), static_cast<float>(m_window->GetHeight()));
              BGE_LOG_INFO("Renderer", "PixelCamera initialized and projection set.");
@@ -37,23 +32,7 @@ bool Renderer::Initialize(Window* window) {
         }
     } else {
         BGE_LOG_ERROR("Renderer", "Failed to initialize PixelCamera.");
-        // return false; // Optionally propagate failure
     }
-
-    // ParticleSystem removed from direct Renderer ownership
-    // m_particleSystem = std::make_unique<ParticleSystem>();
-    // if (m_particleSystem) {
-    //     if (m_particleSystem->Initialize()) { // Default pool size
-    //         BGE_LOG_INFO("Renderer", "ParticleSystem initialized successfully.");
-    //     } else {
-    //         BGE_LOG_ERROR("Renderer", "Failed to initialize ParticleSystem component.");
-    //         m_particleSystem.reset(); // Nullify if initialization failed
-    //         // return false; // Optionally propagate failure
-    //     }
-    // } else {
-    //     BGE_LOG_ERROR("Renderer", "Failed to create ParticleSystem instance.");
-    //     // return false; // Optionally propagate failure
-    // }
 
     BGE_LOG_INFO("Renderer", "Renderer initialized successfully.");
     return true;
@@ -61,9 +40,6 @@ bool Renderer::Initialize(Window* window) {
 
 void Renderer::Shutdown() {
     BGE_LOG_INFO("Renderer", "Renderer shutdown.");
-    // ParticleSystem removed from direct Renderer ownership
-    // if (m_particleSystem) m_particleSystem->Shutdown();
-    // m_particleSystem.reset();
     m_pixelCamera.reset();
 }
 
@@ -87,15 +63,6 @@ void Renderer::RenderWorld(class SimulationWorld* world) {
     }
 }
 
-// Implementations for particle methods and GetViewMatrix will be added in later steps
-// UpdateParticles is removed as Engine will call ParticleSystem::Update directly
-// void Renderer::UpdateParticles(float deltaTime) {
-//     auto particleSystem = ServiceLocator::Instance().GetService<ParticleSystem>();
-//     if (particleSystem) {
-//         particleSystem->Update(deltaTime);
-//     }
-// }
-
 // Placeholder implementation for drawing a single pixel
 void Renderer::DrawPrimitivePixel(int x, int y, const Vector3& color) {
     // This is a placeholder. Actual implementation depends on the graphics API.
@@ -106,10 +73,6 @@ void Renderer::DrawPrimitivePixel(int x, int y, const Vector3& color) {
     // glEnd();
     // BGE_LOG_VERY_VERBOSE("Renderer", "DrawPrimitivePixel at (" + std::to_string(x) + "," + std::to_string(y) + ") with color (" + std::to_string(color.x) + ", " + std::to_string(color.y) + ", " + std::to_string(color.z) + ")");
 }
-// Or for quads:
-// void Renderer::DrawPrimitiveQuad(const Vector2& position, const Vector2& size, const Vector3& color) {
-//    BGE_LOG_VERY_VERBOSE("Renderer", "DrawPrimitiveQuad at (" + std::to_string(position.x) + ...);
-// }
 
 void Renderer::RenderParticles() {
     auto particleSystem = ServiceLocator::Instance().GetService<ParticleSystem>();
@@ -117,9 +80,30 @@ void Renderer::RenderParticles() {
         particleSystem->Render(*this); // Pass *this (the Renderer instance)
     }
 }
-// Matrix4 Renderer::GetViewMatrix() const {
-//     if (m_pixelCamera) return m_pixelCamera->GetViewMatrix();
-//     return Matrix4(); // Return identity if no camera
-// }
+
+// Asset management functions for texture handling
+uint32_t Renderer::CreateTexture(int width, int height, int channels, const void* data) {
+    uint32_t textureId = m_nextTextureId++;
+    // BGE_LOG_INFO("Renderer", "CreateTexture called: ID " + std::to_string(textureId) + ", Size " + std::to_string(width) + "x" + std::to_string(height) + ", Channels " + std::to_string(channels));
+    // In a real renderer:
+    // - glGenTextures(1, &textureId);
+    // - glBindTexture(GL_TEXTURE_2D, textureId);
+    // - glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+    // - Set texture parameters (filtering, wrapping)
+    return textureId; // Return a dummy ID
+}
+
+void Renderer::UpdateTexture(uint32_t textureId, int width, int height, int channels, const void* data) {
+    // BGE_LOG_INFO("Renderer", "UpdateTexture called: ID " + std::to_string(textureId) + ", New Size " + std::to_string(width) + "x" + std::to_string(height) + ", Channels " + std::to_string(channels));
+    // In a real renderer:
+    // - glBindTexture(GL_TEXTURE_2D, textureId);
+    // - glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
+}
+
+void Renderer::DeleteTexture(uint32_t textureId) {
+    // BGE_LOG_INFO("Renderer", "DeleteTexture called: ID " + std::to_string(textureId));
+    // In a real renderer:
+    // - glDeleteTextures(1, &textureId);
+}
 
 } // namespace BGE
