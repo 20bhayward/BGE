@@ -4,6 +4,20 @@ add_library(BGECore STATIC
     Engine.h
     Application.cpp
     Application.h
+    ServiceLocator.cpp
+    ServiceLocator.h
+    EventBus.cpp
+    EventBus.h
+    Events.h
+    Logger.cpp
+    Logger.h
+    Entity.cpp
+    Entity.h
+    ConfigManager.cpp
+    ConfigManager.h
+    Services.h
+    Services.cpp
+    Components.h
     
     # Math
     Math/Vector2.h

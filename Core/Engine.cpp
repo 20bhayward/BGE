@@ -1,10 +1,13 @@
 #include "Engine.h"
 #include "Application.h"
 #include "Platform/Window.h"
-#include "Threading/ThreadPool.h"
-#include "Time/Timer.h"
+#include "ServiceLocator.h"
+#include "EventBus.h"
+#include "Events.h"
+#include "Logger.h"
+#include "ConfigManager.h"
+#include "Entity.h"
 #include "Input/InputManager.h"
-#include "Memory/MemoryPool.h"
 #include "../Simulation/SimulationWorld.h"
 #include "../Renderer/Renderer.h"
 #include "../Audio/AudioSystem.h"
@@ -12,7 +15,8 @@
 #include "UI/UISystem.h"
 
 #include <chrono>
-#include <iostream>
+#include <filesystem>
+#include <thread>
 
 namespace BGE {
 
@@ -28,63 +32,123 @@ bool Engine::Initialize(const EngineConfig& config) {
     
     m_config = config;
     
-    std::cout << "Initializing BGE Engine..." << std::endl;
-    std::cout << "App: " << config.appName << std::endl;
-    std::cout << "Resolution: " << config.windowWidth << "x" << config.windowHeight << std::endl;
+    // Initialize core foundation systems first
+    auto& logger = Logger::Instance();
+    auto& configManager = ConfigManager::Instance();
+    
+    // Create logs directory if it doesn't exist
+    if (!config.logFile.empty()) {
+        std::filesystem::path logPath(config.logFile);
+        std::filesystem::create_directories(logPath.parent_path());
+    }
+    
+    // Initialize logger
+    logger.Initialize(config.logFile);
+    BGE_LOG_INFO("Engine", "Initializing BGE Engine...");
+    
+    // Load configuration
+    if (!config.configFile.empty() && std::filesystem::exists(config.configFile)) {
+        if (configManager.LoadFromFile(config.configFile)) {
+            BGE_LOG_INFO("Engine", "Configuration loaded from: " + config.configFile);
+        } else {
+            BGE_LOG_WARNING("Engine", "Failed to load configuration from: " + config.configFile);
+        }
+    }
+    
+    // Initialize services
+    if (!InitializeServices()) {
+        BGE_LOG_ERROR("Engine", "Failed to initialize core services");
+        return false;
+    }
+    
+    m_initialized = true;
+    
+    // Fire engine initialized event
+    EventBus::Instance().Publish(EngineInitializedEvent{true, "Engine initialized successfully"});
+    BGE_LOG_INFO("Engine", "BGE Engine initialized successfully!");
+    
+    return true;
+}
+
+bool Engine::InitializeServices() {
+    auto& configManager = ConfigManager::Instance();
+    
+    BGE_LOG_INFO("Engine", "Initializing core services...");
     
     try {
-        // Initialize core systems
-        std::cout << "Creating window..." << std::endl;
+        // Create window
+        BGE_LOG_INFO("Engine", "Creating window...");
         m_window = std::make_unique<Window>();
         WindowConfig windowConfig;
-        windowConfig.width = config.windowWidth;
-        windowConfig.height = config.windowHeight;
-        windowConfig.title = config.appName;
+        windowConfig.width = configManager.GetInt("window.width", 1920);
+        windowConfig.height = configManager.GetInt("window.height", 1080);
+        windowConfig.title = configManager.GetString("window.title", "BGE Application");
+        
         if (!m_window->Initialize(windowConfig)) {
-            std::cerr << "Failed to create window" << std::endl;
+            BGE_LOG_ERROR("Engine", "Failed to create window");
             return false;
         }
         
-        std::cout << "Initializing renderer..." << std::endl;
-        m_renderer = std::make_unique<Renderer>();
-        if (!m_renderer->Initialize(m_window.get())) {
-            std::cerr << "Failed to initialize renderer" << std::endl;
-            return false;
-        }
-        
-        std::cout << "Creating simulation world..." << std::endl;
-        m_world = std::make_unique<SimulationWorld>(config.windowWidth, config.windowHeight);
-        
-        std::cout << "Initializing input manager..." << std::endl;
-        m_input = std::make_unique<InputManager>();
-        m_input->Initialize();
-        
-        // Connect input manager to window
-        m_window->SetInputManager(m_input.get());
-        
-        std::cout << "Initializing audio system..." << std::endl;
-        m_audio = std::make_unique<AudioSystem>();
-        m_audio->Initialize();
-        
-        std::cout << "Initializing asset manager..." << std::endl;
-        m_assets = std::make_unique<AssetManager>();
-        m_assets->Initialize();
-        
-        std::cout << "Initializing UI system..." << std::endl;
-        m_ui = std::make_unique<UISystem>();
-        if (!m_ui->Initialize(m_window.get())) {
-            std::cerr << "Failed to initialize UI system" << std::endl;
-            return false;
-        }
-        
-        m_initialized = true;
-        std::cout << "BGE Engine initialized successfully!" << std::endl;
+        // Register core services
+        RegisterCoreServices();
         
         return true;
     }
     catch (const std::exception& e) {
-        std::cerr << "Engine initialization failed: " << e.what() << std::endl;
+        BGE_LOG_ERROR("Engine", "Service initialization failed: " + std::string(e.what()));
         return false;
+    }
+}
+
+void Engine::RegisterCoreServices() {
+    auto& serviceLocator = ServiceLocator::Instance();
+    auto& configManager = ConfigManager::Instance();
+    
+    BGE_LOG_INFO("Engine", "Registering core services...");
+    
+    // Initialize and register renderer
+    auto renderer = std::make_shared<Renderer>();
+    if (renderer->Initialize(m_window.get())) {
+        serviceLocator.RegisterService<Renderer>(renderer);
+        BGE_LOG_INFO("Engine", "Renderer service registered");
+    } else {
+        BGE_LOG_ERROR("Engine", "Failed to initialize renderer");
+    }
+    
+    // Initialize and register simulation world
+    int worldWidth = configManager.GetInt("simulation.world_width", 512);
+    int worldHeight = configManager.GetInt("simulation.world_height", 512);
+    auto world = std::make_shared<SimulationWorld>(worldWidth, worldHeight);
+    serviceLocator.RegisterService<SimulationWorld>(world);
+    BGE_LOG_INFO("Engine", "SimulationWorld service registered");
+    
+    // Initialize and register input manager
+    auto input = std::make_shared<InputManager>();
+    if (input->Initialize()) {
+        m_window->SetInputManager(input.get());
+        serviceLocator.RegisterService<InputManager>(input);
+        BGE_LOG_INFO("Engine", "InputManager service registered");
+    }
+    
+    // Initialize and register audio system
+    auto audio = std::make_shared<AudioSystem>();
+    if (audio->Initialize()) {
+        serviceLocator.RegisterService<AudioSystem>(audio);
+        BGE_LOG_INFO("Engine", "AudioSystem service registered");
+    }
+    
+    // Initialize and register asset manager
+    auto assets = std::make_shared<AssetManager>();
+    if (assets->Initialize()) {
+        serviceLocator.RegisterService<AssetManager>(assets);
+        BGE_LOG_INFO("Engine", "AssetManager service registered");
+    }
+    
+    // Initialize and register UI system
+    auto ui = std::make_shared<UISystem>();
+    if (ui->Initialize(m_window.get())) {
+        serviceLocator.RegisterService<UISystem>(ui);
+        BGE_LOG_INFO("Engine", "UISystem service registered");
     }
 }
 
@@ -93,7 +157,10 @@ void Engine::Shutdown() {
         return;
     }
     
-    std::cout << "Shutting down BGE Engine..." << std::endl;
+    BGE_LOG_INFO("Engine", "Shutting down BGE Engine...");
+    
+    // Fire engine shutting down event  
+    EventBus::Instance().Publish(EngineShuttingDownEvent{"Normal shutdown"});
     
     // Call shutdown callbacks
     for (const auto& callback : m_shutdownCallbacks) {
@@ -102,64 +169,81 @@ void Engine::Shutdown() {
     
     m_running = false;
     
-    // Shutdown systems in reverse order
+    // Shutdown application
     if (m_application) {
         m_application->Shutdown();
         m_application.reset();
     }
     
-    if (m_ui) {
-        m_ui->Shutdown();
-        m_ui.reset();
+    // Clear services
+    auto& serviceLocator = ServiceLocator::Instance();
+    if (auto ui = serviceLocator.GetService<UISystem>()) {
+        ui->Shutdown();
     }
+    serviceLocator.Clear();
     
-    m_assets.reset();
-    m_audio.reset();
-    m_input.reset();
-    m_world.reset();
-    m_renderer.reset();
+    // Clear entity manager
+    EntityManager::Instance().Clear();
+    
+    // Clear event bus
+    EventBus::Instance().Clear();
+    
+    // Shutdown window
     m_window.reset();
     
     m_initialized = false;
-    std::cout << "BGE Engine shutdown complete." << std::endl;
+    BGE_LOG_INFO("Engine", "BGE Engine shutdown complete");
+    
+    // Shutdown logger last
+    Logger::Instance().Shutdown();
 }
 
 void Engine::Run(std::unique_ptr<Application> app) {
     if (!m_initialized) {
-        std::cerr << "Engine not initialized!" << std::endl;
+        BGE_LOG_ERROR("Engine", "Engine not initialized!");
         return;
     }
     
     m_application = std::move(app);
     
     // Connect application to input manager
-    m_input->SetApplication(m_application.get());
+    auto input = ServiceLocator::Instance().GetService<InputManager>();
+    if (input) {
+        input->SetApplication(m_application.get());
+    }
     
     if (!m_application->Initialize()) {
-        std::cerr << "Application initialization failed!" << std::endl;
+        BGE_LOG_ERROR("Engine", "Application initialization failed!");
         return;
     }
     
-    std::cout << "Starting main loop..." << std::endl;
+    BGE_LOG_INFO("Engine", "Starting main loop...");
     m_running = true;
     MainLoop();
 }
 
 void Engine::MainLoop() {
     auto lastTime = std::chrono::high_resolution_clock::now();
-    const float targetFPS = 60.0f;
+    const float targetFPS = ConfigManager::Instance().GetFloat("simulation.update_frequency", 60.0f);
     const float targetFrameTime = 1.0f / targetFPS;
     
+    auto input = ServiceLocator::Instance().GetService<InputManager>();
+    
     while (m_running && !m_window->ShouldClose()) {
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        auto deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
-        lastTime = currentTime;
+        auto frameStartTime = std::chrono::high_resolution_clock::now();
+        auto deltaTime = std::chrono::duration<float>(frameStartTime - lastTime).count();
+        lastTime = frameStartTime;
         
         m_deltaTime = std::min(deltaTime, 0.033f); // Cap at ~30 FPS minimum
         
+        // Fire frame start event
+        EventBus::Instance().Publish(FrameStartEvent{m_deltaTime, m_frameCount});
+        
         // Poll events
         m_window->PollEvents();
-        m_input->Update();
+        if (input) {
+            input->Update();
+        }
         
         // Update application
         Update(m_deltaTime);
@@ -172,44 +256,59 @@ void Engine::MainLoop() {
         
         ++m_frameCount;
         
+        // Calculate frame time
+        auto frameEndTime = std::chrono::high_resolution_clock::now();
+        auto frameTime = std::chrono::duration<float>(frameEndTime - frameStartTime).count();
+        
+        // Fire frame end event
+        EventBus::Instance().Publish(FrameEndEvent{m_deltaTime, m_frameCount, frameTime});
+        
         // Simple frame rate limiting
-        auto frameTime = std::chrono::high_resolution_clock::now() - currentTime;
-        auto frameTimeFloat = std::chrono::duration<float>(frameTime).count();
-        if (frameTimeFloat < targetFrameTime) {
-            auto sleepTime = targetFrameTime - frameTimeFloat;
+        if (frameTime < targetFrameTime) {
+            auto sleepTime = targetFrameTime - frameTime;
             std::this_thread::sleep_for(std::chrono::duration<float>(sleepTime));
         }
     }
     
-    std::cout << "Main loop ended after " << m_frameCount << " frames." << std::endl;
+    BGE_LOG_INFO("Engine", "Main loop ended after " + std::to_string(m_frameCount) + " frames");
 }
 
 void Engine::Update(float deltaTime) {
+    auto& serviceLocator = ServiceLocator::Instance();
+    
+    // Update application
     if (m_application) {
         m_application->Update(deltaTime);
     }
     
-    if (m_world) {
-        m_world->Update(deltaTime);
+    // Update simulation world
+    if (auto world = serviceLocator.GetService<SimulationWorld>()) {
+        world->Update(deltaTime);
     }
     
-    if (m_audio) {
-        m_audio->Update(deltaTime);
+    // Update audio system
+    if (auto audio = serviceLocator.GetService<AudioSystem>()) {
+        audio->Update(deltaTime);
     }
 }
 
 void Engine::Render() {
-    if (m_renderer) {
-        m_renderer->BeginFrame();
+    auto& serviceLocator = ServiceLocator::Instance();
+    auto renderer = serviceLocator.GetService<Renderer>();
+    auto world = serviceLocator.GetService<SimulationWorld>();
+    auto ui = serviceLocator.GetService<UISystem>();
+    
+    if (renderer) {
+        renderer->BeginFrame();
         
         // Render simulation world
-        if (m_world) {
-            m_renderer->RenderWorld(m_world.get());
+        if (world) {
+            renderer->RenderWorld(world.get());
         }
         
         // Begin UI frame
-        if (m_ui) {
-            m_ui->BeginFrame();
+        if (ui) {
+            ui->BeginFrame();
         }
         
         // Render application (including UI)
@@ -218,11 +317,11 @@ void Engine::Render() {
         }
         
         // End UI frame and render UI
-        if (m_ui) {
-            m_ui->EndFrame();
+        if (ui) {
+            ui->EndFrame();
         }
         
-        m_renderer->EndFrame();
+        renderer->EndFrame();
     }
 }
 

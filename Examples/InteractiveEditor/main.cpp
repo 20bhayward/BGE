@@ -1,53 +1,70 @@
 #include "../../Core/Engine.h"
 #include "../../Core/Application.h"
+#include "../../Core/Services.h"
+#include "../../Core/EventBus.h"
+#include "../../Core/Events.h"
+#include "../../Core/Logger.h"
+#include "../../Core/ConfigManager.h"
+#include "../../Core/Entity.h"
+#include "../../Core/Components.h"
 #include "../../Core/Input/MaterialTools.h"
 #include "../../Core/UI/MaterialEditorUI.h"
 #include "../../Simulation/SimulationWorld.h"
 #include "../../Simulation/Materials/MaterialSystem.h"
-#include <iostream>
 
 using namespace BGE;
 
 class InteractiveEditorApp : public Application {
 public:
     bool Initialize() override {
-        std::cout << "=== BGE Interactive Material Editor ===" << std::endl;
-        std::cout << "Controls:" << std::endl;
-        std::cout << "  1-8: Select materials from palette" << std::endl;
-        std::cout << "  0: Eraser" << std::endl;
-        std::cout << "  Left Click: Paint" << std::endl;
-        std::cout << "  Right Click: Erase" << std::endl;
-        std::cout << "  P: Pause/Play simulation" << std::endl;
-        std::cout << "  S: Step one frame" << std::endl;
-        std::cout << "  R: Reset simulation" << std::endl;
-        std::cout << "  C: Clear world" << std::endl;
-        std::cout << "  [/]: Brush size" << std::endl;
-        std::cout << "  B: Brush tool" << std::endl;
-        std::cout << "  E: Eraser tool" << std::endl;
-        std::cout << "  I: Sample tool" << std::endl;
-        std::cout << "Material Palette:" << std::endl;
-        std::cout << "  Sand, Water, Fire, Wood, Stone, Oil, Steam, Natural Gas," << std::endl;
-        std::cout << "  Thick Gas, Smoke, Poison Gas, Ash" << std::endl;
-        std::cout << "=======================================" << std::endl;
+        BGE_LOG_INFO("InteractiveEditor", "=== BGE Interactive Material Editor ===");
+        BGE_LOG_INFO("InteractiveEditor", "Controls:");
+        BGE_LOG_INFO("InteractiveEditor", "  1-8: Select materials from palette");
+        BGE_LOG_INFO("InteractiveEditor", "  0: Eraser");
+        BGE_LOG_INFO("InteractiveEditor", "  Left Click: Paint");
+        BGE_LOG_INFO("InteractiveEditor", "  Right Click: Erase");
+        BGE_LOG_INFO("InteractiveEditor", "  P: Pause/Play simulation");
+        BGE_LOG_INFO("InteractiveEditor", "  S: Step one frame");
+        BGE_LOG_INFO("InteractiveEditor", "  R: Reset simulation");
+        BGE_LOG_INFO("InteractiveEditor", "  C: Clear world");
+        BGE_LOG_INFO("InteractiveEditor", "  [/]: Brush size");
+        BGE_LOG_INFO("InteractiveEditor", "  B: Brush tool");
+        BGE_LOG_INFO("InteractiveEditor", "  E: Eraser tool");
+        BGE_LOG_INFO("InteractiveEditor", "  I: Sample tool");
+        BGE_LOG_INFO("InteractiveEditor", "Material Palette:");
+        BGE_LOG_INFO("InteractiveEditor", "  Sand, Water, Fire, Wood, Stone, Oil, Steam, Natural Gas,");
+        BGE_LOG_INFO("InteractiveEditor", "  Thick Gas, Smoke, Poison Gas, Ash");
+        BGE_LOG_INFO("InteractiveEditor", "=======================================");
         
-        // Get engine systems
-        m_world = Engine::Instance().GetWorld();
+        // Subscribe to engine events
+        SubscribeToEvents();
+        
+        // Get engine systems through service locator
+        m_world = Services::GetWorld();
+        if (!m_world) {
+            BGE_LOG_ERROR("InteractiveEditor", "Failed to get SimulationWorld service");
+            return false;
+        }
+        
         m_materials = m_world->GetMaterialSystem();
         
         // Create materials
         CreateMaterials();
         
         // Initialize material tools
-        if (!m_materialTools.Initialize(m_world)) {
-            std::cerr << "Failed to initialize material tools!" << std::endl;
+        if (!m_materialTools.Initialize(m_world.get())) {
+            BGE_LOG_ERROR("InteractiveEditor", "Failed to initialize material tools!");
             return false;
         }
         
-        // Set up viewport (full window for now)
-        m_materialTools.SetViewport(0, 0, 1280, 720);
+        // Get viewport settings from config
+        auto& config = ConfigManager::Instance();
+        int windowWidth = config.GetInt("window.width", 1280);
+        int windowHeight = config.GetInt("window.height", 720);
+        m_materialTools.SetViewport(0, 0, windowWidth, windowHeight);
         
         // Initialize UI
-        m_editorUI.Initialize(&m_materialTools, m_world);
+        m_editorUI.Initialize(&m_materialTools, m_world.get());
         
         // Start with simulation paused for editing
         m_world->Pause();
@@ -55,6 +72,10 @@ public:
         // Set up initial world
         SetupInitialWorld();
         
+        // Create some editor entities for demonstration
+        CreateEditorEntities();
+        
+        BGE_LOG_INFO("InteractiveEditor", "Interactive Editor initialized successfully");
         return true;
     }
     
@@ -76,12 +97,14 @@ public:
     }
     
     void OnMousePressed(int button, float x, float y) override {
-        std::cout << "Mouse pressed: button=" << button << " at (" << x << ", " << y << ")" << std::endl;
+        BGE_LOG_DEBUG("InteractiveEditor", "Mouse pressed: button=" + std::to_string(button) + 
+                     " at (" + std::to_string(x) + ", " + std::to_string(y) + ")");
         m_materialTools.OnMousePressed(button, x, y);
     }
     
     void OnMouseReleased(int button, float x, float y) override {
-        std::cout << "Mouse released: button=" << button << " at (" << x << ", " << y << ")" << std::endl;
+        BGE_LOG_DEBUG("InteractiveEditor", "Mouse released: button=" + std::to_string(button) + 
+                     " at (" + std::to_string(x) + ", " + std::to_string(y) + ")");
         m_materialTools.OnMouseReleased(button, x, y);
     }
     
@@ -90,7 +113,8 @@ public:
     }
     
     void OnKeyPressed(int key) override {
-        std::cout << "Key pressed: " << key << " ('" << static_cast<char>(key) << "')" << std::endl;
+        BGE_LOG_DEBUG("InteractiveEditor", "Key pressed: " + std::to_string(key) + 
+                     " ('" + std::string(1, static_cast<char>(key)) + "')");
         m_materialTools.OnKeyPressed(key);
         
         // Additional controls
@@ -100,7 +124,7 @@ public:
                 break;
             case 'C': case 'c': // Clear world
                 m_world->Clear();
-                std::cout << "World cleared" << std::endl;
+                BGE_LOG_INFO("InteractiveEditor", "World cleared");
                 break;
         }
     }
@@ -195,7 +219,7 @@ private:
         // Add material reactions
         SetupMaterialReactions(fire, wood, ash, water, steam, naturalGas, thickGas, smoke, poisonGas);
         
-        std::cout << "Created " << m_materials->GetMaterialCount() << " materials" << std::endl;
+        BGE_LOG_INFO("InteractiveEditor", "Created " + std::to_string(m_materials->GetMaterialCount()) + " materials");
     }
     
     void SetupMaterialReactions(MaterialID fire, MaterialID wood, MaterialID ash, MaterialID water, MaterialID steam, 
@@ -258,7 +282,7 @@ private:
         uint32_t width = m_world->GetWidth();
         uint32_t height = m_world->GetHeight();
         
-        std::cout << "World dimensions: " << width << "x" << height << std::endl;
+        BGE_LOG_INFO("InteractiveEditor", "World dimensions: " + std::to_string(width) + "x" + std::to_string(height));
         
         // Stone foundation at bottom
         for (uint32_t x = 0; x < width; ++x) {
@@ -282,12 +306,58 @@ private:
             }
         }
         
-        std::cout << "Initial world setup complete. Ready for editing!" << std::endl;
-        std::cout << "Simulation is PAUSED - press P to start" << std::endl;
-        std::cout << "Try clicking to paint, pressing number keys 1-8 to select materials" << std::endl;
+        BGE_LOG_INFO("InteractiveEditor", "Initial world setup complete. Ready for editing!");
+        BGE_LOG_INFO("InteractiveEditor", "Simulation is PAUSED - press P to start");
+        BGE_LOG_INFO("InteractiveEditor", "Try clicking to paint, pressing number keys 1-8 to select materials");
     }
     
-    SimulationWorld* m_world = nullptr;
+    void SubscribeToEvents() {
+        auto& eventBus = EventBus::Instance();
+        
+        // Subscribe to engine events
+        eventBus.Subscribe<EngineInitializedEvent>([this](const EngineInitializedEvent& event) {
+            BGE_LOG_INFO("InteractiveEditor", "Received engine initialized event: " + event.message);
+        });
+        
+        eventBus.Subscribe<FrameStartEvent>([this](const FrameStartEvent& event) {
+            // Could use this for performance monitoring
+            if (event.frameCount % 60 == 0) { // Log every second at 60 FPS
+                BGE_LOG_TRACE("InteractiveEditor", "Frame " + std::to_string(event.frameCount) + 
+                             ", Delta: " + std::to_string(event.deltaTime));
+            }
+        });
+        
+        eventBus.Subscribe<WindowResizeEvent>([this](const WindowResizeEvent& event) {
+            BGE_LOG_INFO("InteractiveEditor", "Window resized to " + std::to_string(event.width) + 
+                        "x" + std::to_string(event.height));
+            // Update viewport when window is resized
+            m_materialTools.SetViewport(0, 0, event.width, event.height);
+        });
+    }
+    
+    void CreateEditorEntities() {
+        auto& entityManager = EntityManager::Instance();
+        
+        // Create a cursor entity for demonstration
+        auto cursorEntity = entityManager.CreateEntity("EditorCursor");
+        cursorEntity->AddComponent<TransformComponent>(Vector3{0, 0, 0});
+        cursorEntity->AddComponent<NameComponent>("Editor Cursor");
+        
+        // Create some material sample entities
+        auto sandSample = entityManager.CreateEntity("SandSample");
+        sandSample->AddComponent<TransformComponent>(Vector3{100, 100, 0});
+        sandSample->AddComponent<MaterialComponent>(1); // Sand material ID
+        sandSample->AddComponent<NameComponent>("Sand Sample");
+        
+        auto waterSample = entityManager.CreateEntity("WaterSample");
+        waterSample->AddComponent<TransformComponent>(Vector3{200, 100, 0});
+        waterSample->AddComponent<MaterialComponent>(2); // Water material ID
+        waterSample->AddComponent<NameComponent>("Water Sample");
+        
+        BGE_LOG_INFO("InteractiveEditor", "Created " + std::to_string(entityManager.GetEntityCount()) + " editor entities");
+    }
+    
+    std::shared_ptr<SimulationWorld> m_world;
     MaterialSystem* m_materials = nullptr;
     MaterialTools m_materialTools;
     MaterialEditorUI m_editorUI;
@@ -296,21 +366,23 @@ private:
 int main() {
     // Configure engine for editor use
     EngineConfig config;
-    config.appName = "BGE Interactive Material Editor";
-    config.windowWidth = 1280;
-    config.windowHeight = 720;
-    config.enableRaytracing = false; // Keep it simple for editor
+    config.configFile = "config.ini";
+    config.logFile = "logs/interactive_editor.log";
     
-    // Initialize engine
+    // Initialize engine with new architecture
     Engine& engine = Engine::Instance();
     if (!engine.Initialize(config)) {
-        std::cerr << "Failed to initialize BGE engine!" << std::endl;
+        BGE_LOG_ERROR("Main", "Failed to initialize BGE engine!");
         return -1;
     }
+    
+    BGE_LOG_INFO("Main", "Engine initialized, starting Interactive Material Editor");
     
     // Create and run application
     auto app = std::make_unique<InteractiveEditorApp>();
     engine.Run(std::move(app));
+    
+    BGE_LOG_INFO("Main", "Application finished, shutting down engine");
     
     // Cleanup
     engine.Shutdown();
