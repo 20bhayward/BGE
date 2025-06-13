@@ -67,6 +67,7 @@ void Renderer::RenderWorld(class SimulationWorld* world) {
 
 // Placeholder implementation for drawing a single pixel
 void Renderer::DrawPrimitivePixel(int x, int y, const Vector3& color) {
+    (void)x; (void)y; (void)color; // Suppress unused parameter warnings
     // This is a placeholder. Actual implementation depends on the graphics API.
     // Example: If using an OpenGL immediate mode style (highly simplified):
     // glColor3f(color.x, color.y, color.z);
@@ -85,6 +86,7 @@ void Renderer::RenderParticles() {
 
 // Asset management functions for texture handling
 uint32_t Renderer::CreateTexture(int width, int height, int channels, const void* data) {
+    (void)width; (void)height; (void)channels; (void)data; // Suppress unused parameter warnings
     uint32_t textureId = m_nextTextureId++;
     // BGE_LOG_INFO("Renderer", "CreateTexture called: ID " + std::to_string(textureId) + ", Size " + std::to_string(width) + "x" + std::to_string(height) + ", Channels " + std::to_string(channels));
     // In a real renderer:
@@ -96,6 +98,7 @@ uint32_t Renderer::CreateTexture(int width, int height, int channels, const void
 }
 
 void Renderer::UpdateTexture(uint32_t textureId, int width, int height, int channels, const void* data) {
+    (void)textureId; (void)width; (void)height; (void)channels; (void)data; // Suppress unused parameter warnings
     // BGE_LOG_INFO("Renderer", "UpdateTexture called: ID " + std::to_string(textureId) + ", New Size " + std::to_string(width) + "x" + std::to_string(height) + ", Channels " + std::to_string(channels));
     // In a real renderer:
     // - glBindTexture(GL_TEXTURE_2D, textureId);
@@ -103,6 +106,7 @@ void Renderer::UpdateTexture(uint32_t textureId, int width, int height, int chan
 }
 
 void Renderer::DeleteTexture(uint32_t textureId) {
+    (void)textureId; // Suppress unused parameter warning
     // BGE_LOG_INFO("Renderer", "DeleteTexture called: ID " + std::to_string(textureId));
     // In a real renderer:
     // - glDeleteTextures(1, &textureId);
