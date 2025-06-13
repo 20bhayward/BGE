@@ -290,6 +290,11 @@ void Engine::Update(float deltaTime) {
     if (auto audio = serviceLocator.GetService<AudioSystem>()) {
         audio->Update(deltaTime);
     }
+
+    // Update Asset Manager (for hot-reloading)
+    if (auto assets = serviceLocator.GetService<AssetManager>()) {
+        assets->Update();
+    }
 }
 
 void Engine::Render() {
