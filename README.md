@@ -1,196 +1,138 @@
-Project Plan: High-Performance Falling Sand Engine
-1. Project Overview
-1.1. Introduction
-This document outlines a comprehensive plan for developing a high-performance 2D falling sand game engine and its accompanying toolset. The core architectural goal is to achieve massive-scale simulation with thousands of interacting particles in real-time. The engine will simulate the interactions of various particle types, drawing inspiration from the complex and emergent behaviors seen in the game Noita, while prioritizing performance, visual fidelity, and developer efficiency at every stage.
-1.2. Key Features
-Performance-First Architecture: The engine will be built using data-oriented design principles to maximize CPU cache efficiency and enable parallel processing.
-Cellular Automata Core: A highly optimized cellular automata system will manage the state of each pixel in the world.
-Diverse Materials & Complex Interactions: The engine will support a variety of materials that interact in emergent ways (e.g., fire burns wood, water creates steam).
-Modern Rendering & Visuals: A programmable rendering pipeline with support for dynamic lighting, shaders, and advanced post-processing effects.
-Robust Development Tooling: A suite of integrated tools for material creation, world generation editing, and in-depth debugging.
-Advanced Optimization: The engine will leverage modern techniques including spatial partitioning, multi-threading, and optional GPGPU acceleration.
-Extensibility: The engine will be designed to be easily extensible without sacrificing performance.
-Procedural Generation: The game world will be procedurally generated, creating unique and replayable experiences.
-2. Core Engine Architecture (Performance Focus)
-2.1. Cellular Automata Grid
-Data Structure: The world grid will be implemented as a 1D array (or std::vector in C++) instead of a 2D array. This ensures contiguous memory allocation, leading to significantly better CPU cache performance (cache locality), which is fundamental for high-speed iteration. The mapping from 2D (x, y) coordinates to a 1D index is index = y * width + x.
-Update Strategy:
-Double Buffering: Two grids will be used: a read_grid and a write_grid. During the update loop, rules will be calculated based on the state of the read_grid, and the new state will be written to the write_grid. After the update is complete, the buffers are swapped. This prevents race conditions and update-order artifacts (where a particle moves multiple times in one frame).
-Active Chunk Processing: The world will be divided into chunks, and only chunks that contain moving particles ("dirty" chunks) will be processed in the update loop.
-2.2. Particle Simulation
-Data-Oriented Properties: Each material will be represented by a simple ID (e.g., an integer or enum). The properties of these materials (density, color, flammability, etc.) will be stored in separate, tightly packed arrays indexed by the material ID. This is a key principle of Data-Oriented Design (DOD).
-Rules Engine: The simulation rules will be designed to be simple, branchless where possible, and highly optimizable.
-2.3. Rendering
-Programmable Pipeline: The rendering will be handled through a modern graphics API (OpenGL or Vulkan) using custom shaders (GLSL), allowing for complete control over the visual output.
-Pixel Buffer Rendering: The world state will be rendered to an intermediate pixel buffer or texture.
-Optimized Rendering with Dirty Rectangles: Instead of re-uploading the entire world texture to the GPU every frame, the engine will track which regions (chunks or "dirty rectangles") have changed. Only these modified regions will be updated on the GPU, drastically reducing the bandwidth between the CPU and GPU.
-3. Advanced Rendering & Tooling
-3.1. Modern Rendering & Visual Effects
-2D Dynamic Lighting:
-Normal Mapping: The engine will support normal maps for terrain and potentially large entities. This allows static sprites to react to dynamic light sources, creating the illusion of depth and texture.
-Dynamic Light Sources: Support for various light types (point lights, spot lights) that can be attached to entities or created by effects (e.g., explosions, spells).
-2D Shadows: Real-time shadow casting from terrain and entities to add depth and realism to the scene.
-Shader-Based Material Effects:
-Custom shaders will be used to give materials unique visual properties beyond a simple color, such as the shimmer and reflectivity of water, the glow of lava, or the distortion caused by intense heat.
-Post-Processing Stack:
-A flexible post-processing system will allow for a chain of screen-space effects to be applied.
-Bloom: For intense, glowing highlights on magical effects, fire, and other bright materials.
-Color Grading: To adjust the overall mood and aesthetic of different biomes or game states.
-Distortion & Heat Haze: Screen-space shaders to create effects like shockwaves from explosions or heat shimmer above lava.
-3.2. Developer & Designer Tooling
-Material / Element Editor:
-A standalone or in-game GUI tool that allows designers to define and edit materials without writing code.
-Features: Edit properties (color, density, flammability), define states (solid, liquid, gas), and create reaction rules (e.g., "Water + Lava -> Rock + Steam").
-World & Biome Editor:
-A visual editor for creating and tweaking the parameters for procedural world generation.
-Features: Define biome types, control terrain features, set probabilities for structures and materials, and visualize the resulting world in real-time.
-Advanced Debugging & Profiling Suite:
-Simulation Inspector: An in-game tool to pause the simulation and inspect the state of any individual pixel, including its material type, lifetime, and other properties.
-Performance Visualizer: A debug overlay that displays critical performance data in real-time, such as chunk boundaries, active ("dirty") chunks, thread utilization, and detailed frame timing information.
-Physics Debugger: Renders the collision shapes of all rigid bodies (player, large objects) to help debug physics interactions.
-4. Development Phases
-Phase 1: Basic Engine Foundation (1-2 Weeks)
-[ ] Project Setup:
-[ ] Choose a high-performance language/framework (C++ with SFML/SDL is ideal for low-level control).
-[ ] Set up version control (Git).
-[ ] Cellular Automata Grid:
-[ ] Implement the 1D array grid with a double buffer system.
-[ ] Create the basic bottom-to-top update loop.
-[ ] Basic Materials:
-[ ] Implement "Empty" and "Sand" materials using a simple ID system.
-[ ] Implement basic gravity and sliding rules for sand.
-[ ] Rendering:
-[ ] Implement a basic renderer that draws the entire grid to the screen.
-Phase 2: Material & Interaction System (2-3 Weeks)
-[ ] Data-Oriented Material System:
-[ ] Design a system where material properties are stored in contiguous arrays, separate from the main world grid.
-[ ] Liquid & Gas Simulation:
-[ ] Implement "Water" and "Steam" with optimized flow and dissipation logic.
-[ ] Solid Materials:
-[ ] Implement "Rock" and "Wood" as static/flammable materials.
-[ ] Interaction Engine:
-[ ] Create a system for defining material interactions (e.g., fire + wood -> burning).
-[ ] Tooling:
-[ ] Develop a simple, command-line or config-file based material editor.
-Phase 3: Gameplay and Content (3-4 Weeks)
-[ ] Interaction Engine:
-[ ] Implement phase changes (water -> steam -> water).
-[ ] Player & Spells:
-[ ] Add a player character and a basic spell-casting system that can modify the grid.
-[ ] Procedural Generation:
-[ ] Implement initial world generation algorithms.
-[ ] Tooling:
-[ ] Create the first version of the GUI-based Material Editor.
-Phase 4: Advanced Performance & Visuals (4-6 Weeks)
-This phase is critical and focuses on scaling the simulation to handle extreme scenarios and adding visual polish.
-[ ] Spatial Partitioning (Chunking):
-[ ] Divide the world grid into fixed-size chunks (e.g., 64x64 pixels).
-[ ] Implement a system to track "dirty" chunks.
-[ ] Parallelism & Concurrency:
-[ ] Multithreading (Checkerboard Pattern): Parallelize the chunk update loop.
-[ ] Rendering Pipeline:
-[ ] Implement the Dirty Rectangle rendering strategy.
-[ ] Implement basic dynamic lighting and a simple post-processing stack (Bloom).
-[ ] Tooling:
-[ ] Build the Performance Visualizer debug overlay.
-Phase 5: GPGPU & Feature Completion (Ongoing)
-[ ] GPU Compute Simulation (GPGPU) (Optional):
-[ ] For ultimate performance, explore offloading the entire simulation to the GPU using Compute Shaders.
-[ ] Advanced Visuals:
-[ ] Implement 2D shadows and advanced shader effects for materials.
-[ ] Tooling:
-[ ] Develop the World & Biome editor and the Simulation Inspector.
-5. Technical Stack
-Language: C++ (Recommended for performance-critical, low-level control).
-Graphics Library: SFML or SDL (for windowing and input), with direct OpenGL or Vulkan for rendering.
-Physics (for rigid bodies): Box2D (for non-pixel entities like the player or large falling debris).
-Version Control: Git
-GUI for Tools: Dear ImGui, Qt, or another suitable GUI library.
-Excellent points. A high-performance simulation engine is only one part of the equation. To create a truly great game, you need stunning visuals that bring the simulation to life and powerful tools that streamline the development process.
-I've updated the project plan to incorporate these crucial aspects, adding dedicated sections for modern rendering techniques and robust development tooling.
-Project Plan: High-Performance Falling Sand Engine
-1. Project Overview
-1.1. Introduction
-This document outlines a comprehensive plan for developing a high-performance 2D falling sand game engine. The core architectural goal is to achieve massive-scale simulation with thousands of interacting particles in real-time. The engine will simulate the interactions of various particle types, drawing inspiration from the complex and emergent behaviors seen in the game Noita, while prioritizing performance, modern visual effects, and a robust tooling pipeline at every stage of development.
-1.2. Key Features
-Performance-First Architecture: The engine will be built using data-oriented design principles to maximize CPU cache efficiency and enable parallel processing.
-Cellular Automata Core: A highly optimized cellular automata system will manage the state of each pixel in the world.
-Modern Rendering Engine: A sophisticated rendering pipeline with support for dynamic lighting, shaders, and post-processing effects.
-Diverse Materials & Complex Interactions: The engine will support a variety of materials that interact in emergent ways (e.g., fire burns wood, water creates steam).
-Advanced Optimization: The engine will leverage modern techniques including spatial partitioning, multi-threading, and optional GPGPU acceleration.
-Robust Tooling: A suite of integrated tools, including a material editor, procedural generation controls, and advanced debug visualizers, will empower rapid development and iteration.
-Extensibility: The engine will be designed to be easily extensible without sacrificing performance.
-Procedural Generation: The game world will be procedurally generated, creating unique and replayable experiences.
-2. Core Engine Architecture (Performance Focus)
-2.1. Cellular Automata Grid
-Data Structure: The world grid will be implemented as a 1D array (or std::vector in C++) to ensure contiguous memory, maximizing CPU cache performance. The mapping from 2D (x, y) to a 1D index is index = y * width + x.
-Update Strategy:
-Double Buffering: A read_grid and write_grid system will be used to prevent race conditions and update-order artifacts.
-Active Chunk Processing: The world will be divided into chunks, and only "dirty" chunks will be processed.
-2.2. Particle Simulation
-Data-Oriented Properties: Each material will be represented by a simple ID. Material properties (density, color, flammability, etc.) will be stored in separate, tightly packed arrays, a key principle of Data-Oriented Design (DOD).
-Rules Engine: The simulation rules will be designed to be simple, branchless where possible, and highly optimizable.
-2.3. Rendering
-Pixel Buffer Rendering: The world state will be rendered to an intermediate pixel buffer or texture.
-Optimized Rendering with Dirty Rectangles: Only regions (chunks) that have changed will be updated on the GPU, drastically reducing CPU-GPU bandwidth.
-Shader Support: The rendering pipeline will be built from the ground up to support custom shaders for materials and post-processing, allowing for advanced visual effects.
-3. Development Phases
-Phase 1: Basic Engine Foundation (1-2 Weeks)
-[ ] Project Setup: C++ with SFML/SDL.
-[ ] Cellular Automata Grid: Implement the 1D array grid with a double buffer system.
-[ ] Basic Materials: Implement "Empty" and "Sand" materials.
-[ ] Rendering: Implement a basic renderer that draws the entire grid to the screen.
-Phase 2: Material & Interaction System (2-3 Weeks)
-[ ] Data-Oriented Material System: Design the property arrays for materials.
-[ ] Liquid & Gas Simulation: Implement "Water" and "Steam".
-[ ] Solid Materials: Implement "Rock" and "Wood".
-[ ] Interaction Engine: Create a system for defining material interactions.
-[ ] Tooling: Develop the first version of the Material Editor UI to define and tweak materials without recompiling.
-Phase 3: Gameplay and Visuals (3-4 Weeks)
-[ ] Interaction Engine: Implement phase changes (water -> steam -> water).
-[ ] Player & Spells: Add a player character and a basic spell-casting system.
-[ ] Procedural Generation: Implement initial world generation algorithms.
-[ ] Rendering: Implement support for sprite normal maps and a basic 2D dynamic lighting shader.
-Phase 4: Advanced Performance & Tooling (4-6 Weeks)
-[ ] Spatial Partitioning (Chunking): Implement the "dirty" chunk system.
-[ ] Parallelism & Concurrency: Implement the multithreading checkerboard pattern for chunk updates.
-[ ] Low-Level CPU Optimization (Advanced): Profile and optimize critical sections with SIMD intrinsics.
-[ ] Optimized Rendering: Implement the Dirty Rectangle rendering strategy.
-[ ] Tooling: Develop advanced debug visualizers (e.g., chunk boundaries, thread activity view).
-Phase 5: Polishing and Advanced Effects (Ongoing)
-[ ] Rendering: Implement a post-processing stack with effects like bloom, color grading, and screen distortion.
-[ ] Tooling: Enhance the PGC systems with a visual editor for tuning generation parameters.
-[ ] GPGPU & Future Scaling (Optional): Explore offloading the simulation to the GPU via Compute Shaders.
-4. Technical Stack
-Language: C++ (Recommended for performance-critical, low-level control).
-Graphics Library: SFML or SDL (for windowing and input), with direct OpenGL or Vulkan for rendering.
-Physics (for rigid bodies): Box2D.
-Tooling UI Library: A lightweight immediate-mode GUI library like Dear ImGui for building integrated development tools.
-Version Control: Git.
-5. Modern Rendering & Tooling
-5.1. Modern Rendering & Visuals
-To elevate the game beyond a simple pixel simulation, a dedicated rendering effort is required.
-Dynamic Lighting: We will use normal maps for terrain and key objects. A lighting shader will calculate how light sources interact with these surfaces in real-time, creating the illusion of depth, texture, and dynamic shadows.
-Material Shaders: Specific materials will have their own shader effects.
-Water: Refraction and subtle reflections.
-Fire/Lava: A glow/emissive effect and a heat-haze distortion shader that affects objects behind it.
-Magic: Particle effects, sparks, and custom emissive properties.
-Post-Processing Stack: A series of full-screen shader effects will be applied to the final image to enhance the atmosphere.
-Bloom: Makes bright areas (like lava, spells) bleed light, giving them a vibrant glow.
-Color Grading: Adjusts the overall color palette to set the mood for different biomes or events.
-Screen Distortion: Used for explosions or magical effects to warp the screen.
-5.2. Developer & Designer Tooling
-To enable rapid iteration and empower designers, building a robust set of in-engine tools is paramount. These tools should be built with a library like Dear ImGui and be easily toggled on/off in debug builds.
-Material Editor: A visual, node-based or property-grid editor that allows designers to:
-Create new material types.
-Define properties: color, density, slipperiness, flammability, etc.
-Define reactions: Specify what happens when it interacts with other materials (e.g., [Acid] + [Metal] -> [Steam] + [Rust]).
-These definitions will be saved to data files (e.g., JSON) that the engine loads at runtime.
-Procedural Generation Control Panel: A UI to control and visualize the procedural content generation (PCG). Designers can:
-Tweak parameters for noise functions (Perlin, Simplex) used for terrain generation.
-Adjust biome size, frequency, and material composition.
-Instantly regenerate and preview the world based on new settings.
-Advanced Debug Visualizers: A suite of real-time diagnostic views:
-Chunk View: Overlays chunk boundaries on the screen, color-coding them by state (active, idle, dirty).
-Physics View: Renders pixels based on physical properties instead of color (e.g., show density, temperature, or velocity) to easily debug simulation behavior.
-In-Game Console: A powerful command-line interface to spawn materials, trigger events, teleport the player, or modify game variables on the fly.
+# BGE (Burning Glass Engine)
+
+A high-performance 2D falling sand game engine with modern graphics capabilities including 2D raytracing and global illumination.
+
+## Features
+
+### Core Engine
+- **High-Performance Simulation**: Optimized cellular automata with data-oriented design
+- **Modern Graphics**: 2D raytracing, global illumination, dynamic lighting
+- **Cross-Platform**: Windows, Linux, macOS support
+- **Multi-Threading**: Automatic workload distribution across CPU cores
+- **GPU Acceleration**: Optional compute shader acceleration for simulation and lighting
+
+### Developer Features
+- **Simple API**: Easy-to-use C++ interface for game development
+- **Material System**: Powerful material creation with physical and optical properties
+- **Scripting Support**: Lua scripting for game logic and modding
+- **Integrated Editor**: Visual tools for material creation and world design
+- **Asset Pipeline**: Streamlined content creation workflow
+
+### Graphics & Rendering
+- **2D Raytracing**: Real-time light simulation with reflections and refractions
+- **Global Illumination**: Multi-bounce lighting for realistic scenes
+- **Material Shaders**: Custom shaders for different material types
+- **Post-Processing**: Bloom, color grading, heat distortion effects
+- **Dynamic Lighting**: Point lights, spot lights, area lights
+
+## Quick Start
+
+### Basic Sandbox Example
+```cpp
+#include "BGE/BGE.h"
+using namespace BGE;
+
+class MyGame : public Application {
+public:
+    bool Initialize() override {
+        // Create materials
+        auto sand = GetMaterialSystem()->CreateMaterial("Sand")
+            .SetColor(200, 180, 120)
+            .SetBehavior(MaterialBehavior::Powder);
+            
+        auto fire = GetMaterialSystem()->CreateMaterial("Fire")
+            .SetColor(255, 100, 0)
+            .SetEmission(2.0f)
+            .SetBehavior(MaterialBehavior::Fire);
+            
+        return true;
+    }
+    
+    void Update(float deltaTime) override {
+        GetWorld()->Update(deltaTime);
+    }
+};
+
+int main() {
+    EngineConfig config;
+    config.appName = "My Falling Sand Game";
+    
+    Engine::Instance().Initialize(config);
+    Engine::Instance().Run(std::make_unique<MyGame>());
+    return 0;
+}
+```
+
+## Building
+
+### Prerequisites
+- CMake 3.20+
+- C++20 compatible compiler
+- Vulkan SDK (optional, for advanced graphics)
+- OpenGL 4.5+ (fallback renderer)
+
+### Build Steps
+```bash
+git clone https://github.com/your-repo/BGE.git
+cd BGE
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+```
+
+### Build Options
+- `BGE_BUILD_EXAMPLES=ON` - Build example projects
+- `BGE_BUILD_EDITOR=ON` - Build integrated editor
+- `BGE_USE_VULKAN=ON` - Enable Vulkan renderer
+- `BGE_USE_OPENGL=ON` - Enable OpenGL fallback
+
+## Architecture
+
+### Engine Modules
+```
+BGE/
+├── Core/           # Engine foundation (math, memory, threading)
+├── Simulation/     # Cellular automata and physics simulation
+├── Renderer/       # Modern graphics pipeline with raytracing
+├── Audio/          # 3D spatial audio system
+├── Scripting/      # Lua scripting interface
+├── Editor/         # Integrated development environment
+├── AssetPipeline/  # Content creation and asset processing
+└── Runtime/        # Game packaging and distribution
+```
+
+### Performance Features
+- **Data-Oriented Design**: Optimized memory layout for cache efficiency
+- **Spatial Partitioning**: Chunk-based world updates
+- **Multi-Threading**: Parallel simulation and rendering
+- **GPU Compute**: Offload intensive calculations to GPU
+- **LOD System**: Automatic quality scaling
+
+## Documentation
+
+- [Getting Started Guide](Docs/GettingStarted.md)
+- [API Reference](Docs/API.md)
+- [Material System](Docs/Materials.md)
+- [Rendering Pipeline](Docs/Rendering.md)
+- [Editor Tools](Docs/Editor.md)
+- [Performance Guide](Docs/Performance.md)
+
+## Examples
+
+- **BasicSandbox**: Simple falling sand simulation
+- **LightingDemo**: 2D raytracing and global illumination showcase
+- **MaterialEditor**: Interactive material creation tool
+- **PhysicsDemo**: Rigid body integration with particle simulation
+- **ProceduralWorld**: Procedural world generation example
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Contributing
+
+Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+To run: cmake .. 
+` -DCMAKE_TOOLCHAIN_FILE=G:/vcpkg/scripts/buildsystems/vcpkg.cmake -G "Visual Studio 17 2022" -A x64`
+` cmake --build . --config Release --target InteractiveEditor`

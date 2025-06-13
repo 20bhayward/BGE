@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/SandSim.dir/main.cpp.o CMakeFiles/SandSim.dir/Engine.cpp.o CMakeFiles/SandSim.dir/Window.cpp.o CMakeFiles/SandSim.dir/Grid.cpp.o CMakeFiles/SandSim.dir/Renderer.cpp.o CMakeFiles/SandSim.dir/MaterialRegistry.cpp.o CMakeFiles/SandSim.dir/UIManager.cpp.o -o SandSim
