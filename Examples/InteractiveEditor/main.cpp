@@ -74,6 +74,25 @@ public:
         
         // Create some editor entities for demonstration
         CreateEditorEntities();
+
+        // BEGIN: Added for MovementSystem test
+        auto& entityManager = BGE::EntityManager::Instance();
+        auto testEntity = entityManager.CreateEntity("MovingEntity");
+
+        if (testEntity)
+        {
+            testEntity->AddComponent<BGE::TransformComponent>(); // Default position is {0,0,0}
+            testEntity->AddComponent<BGE::VelocityComponent>(BGE::Vector3{10.0f, 0.0f, 0.0f});
+
+            m_testEntityId = testEntity->GetID(); // Store the ID
+            // Use "InteractiveEditor" for subsystem name to match existing logs
+            BGE_LOG_INFO("InteractiveEditor", "Created MovingEntity with ID: " + std::to_string(m_testEntityId));
+        }
+        else
+        {
+            BGE_LOG_ERROR("InteractiveEditor", "Failed to create MovingEntity.");
+        }
+        // END: Added for MovementSystem test
         
         BGE_LOG_INFO("InteractiveEditor", "Interactive Editor initialized successfully");
         return true;
@@ -89,6 +108,28 @@ public:
         
         // Update material tools
         m_materialTools.Update(deltaTime);
+
+        // BEGIN: Added for MovementSystem test
+        if (m_testEntityId != BGE::INVALID_ENTITY_ID) // Check if ID is valid
+        {
+            auto* entity = BGE::EntityManager::Instance().GetEntity(m_testEntityId);
+            if (entity)
+            {
+                auto* transform = entity->GetComponent<BGE::TransformComponent>();
+                if (transform)
+                {
+                    // Ensure BGE_LOG_DEBUG takes (const char* system, const char* message)
+                    std::string logMessage = "Entity Position: " + std::to_string(transform->position.x);
+                    BGE_LOG_DEBUG("Test", logMessage.c_str()); // Using "Test" as the system name for this log
+                }
+            }
+            // else
+            // {
+                // Entity might have been destroyed, log this once perhaps
+                // BGE_LOG_WARN("InteractiveEditor", "MovingEntity not found during update.");
+            // }
+        }
+        // END: Added for MovementSystem test
     }
     
     void Render() override {
@@ -361,6 +402,8 @@ private:
     MaterialSystem* m_materials = nullptr;
     MaterialTools m_materialTools;
     MaterialEditorUI m_editorUI;
+
+    BGE::EntityID m_testEntityId; // Added for MovementSystem test
 };
 
 int main() {
