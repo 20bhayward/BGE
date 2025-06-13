@@ -315,6 +315,9 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="G:\Dev\BGE\Core\Services.h" />
     <ClCompile Include="G:\Dev\BGE\Core\Services.cpp" />
     <ClInclude Include="G:\Dev\BGE\Core\Components.h" />
+    <ClInclude Include="G:\Dev\BGE\Core\SystemManager.h" />
+    <ClCompile Include="G:\Dev\BGE\Core\SystemManager.cpp" />
+    <ClInclude Include="G:\Dev\BGE\Core\ISystem.h" />
     <ClInclude Include="G:\Dev\BGE\Core\Math\Vector2.h" />
     <ClInclude Include="G:\Dev\BGE\Core\Math\Vector3.h" />
     <ClInclude Include="G:\Dev\BGE\Core\Math\Vector4.h" />

@@ -6,6 +6,7 @@ G:\Dev\BGE\Core\Logger.cpp;G:\Dev\BGE\build\Core\BGECore.dir\Release\Logger.obj
 G:\Dev\BGE\Core\Entity.cpp;G:\Dev\BGE\build\Core\BGECore.dir\Release\Entity.obj
 G:\Dev\BGE\Core\ConfigManager.cpp;G:\Dev\BGE\build\Core\BGECore.dir\Release\ConfigManager.obj
 G:\Dev\BGE\Core\Services.cpp;G:\Dev\BGE\build\Core\BGECore.dir\Release\Services.obj
+G:\Dev\BGE\Core\SystemManager.cpp;G:\Dev\BGE\build\Core\BGECore.dir\Release\SystemManager.obj
 G:\Dev\BGE\Core\Math\Math.cpp;G:\Dev\BGE\build\Core\BGECore.dir\Release\Math.obj
 G:\Dev\BGE\Core\Memory\MemoryPool.cpp;G:\Dev\BGE\build\Core\BGECore.dir\Release\MemoryPool.obj
 G:\Dev\BGE\Core\Memory\Allocator.cpp;G:\Dev\BGE\build\Core\BGECore.dir\Release\Allocator.obj

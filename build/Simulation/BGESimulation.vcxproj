@@ -320,6 +320,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="G:\Dev\BGE\Simulation\World\ChunkManager.cpp" />
     <ClInclude Include="G:\Dev\BGE\Simulation\World\WorldGenerator.h" />
     <ClCompile Include="G:\Dev\BGE\Simulation\World\WorldGenerator.cpp" />
+    <ClInclude Include="G:\Dev\BGE\Simulation\Systems\MovementSystem.h" />
+    <ClCompile Include="G:\Dev\BGE\Simulation\Systems\MovementSystem.cpp" />
     <ClInclude Include="G:\Dev\BGE\Simulation\Compute\SimulationCompute.h" />
     <ClCompile Include="G:\Dev\BGE\Simulation\Compute\SimulationCompute.cpp" />
   </ItemGroup>

@@ -87,7 +87,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\Dev\BGE\AI\.;G:\Dev\BGE\AssetPipeline\.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "G:/vcpkg/installed/x64-windows/include" /external:I "G:/Vulkan/Include"</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -111,10 +111,10 @@
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;_CRT_SECURE_NO_WARNINGS;GLFW_DLL;BGE_COMPUTE_SUPPORT;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\Dev\BGE\AI\.;G:\Dev\BGE\AssetPipeline\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\Dev\BGE\AI\.;G:\Dev\BGE\AssetPipeline\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -134,7 +134,7 @@ exit /b %1
 if %errorlevel% neq 0 goto :VCEnd</Command>
     </PostBuildEvent>
     <Link>
-      <AdditionalDependencies>..\..\Core\Debug\BGECore.lib;..\..\Simulation\Debug\BGESimulation.lib;..\..\Renderer\Debug\BGERenderer.lib;G:\Vulkan\Lib\vulkan-1.lib;..\..\Core\Debug\BGECore.lib;G:\vcpkg\installed\x64-windows\debug\lib\imguid.lib;G:\vcpkg\installed\x64-windows\debug\lib\glfw3dll.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\..\Core\Debug\BGECore.lib;..\..\Simulation\Debug\BGESimulation.lib;..\..\Renderer\Debug\BGERenderer.lib;..\..\AI\Debug\BGEAI.lib;..\..\AssetPipeline\Debug\BGEAssetPipeline.lib;..\..\Simulation\Debug\BGESimulation.lib;G:\Vulkan\Lib\vulkan-1.lib;..\..\Core\Debug\BGECore.lib;G:\vcpkg\installed\x64-windows\debug\lib\imguid.lib;G:\vcpkg\installed\x64-windows\debug\lib\glfw3dll.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -149,7 +149,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\Dev\BGE\AI\.;G:\Dev\BGE\AssetPipeline\.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "G:/vcpkg/installed/x64-windows/include" /external:I "G:/Vulkan/Include"</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -174,10 +174,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_WARNINGS;GLFW_DLL;BGE_COMPUTE_SUPPORT;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\Dev\BGE\AI\.;G:\Dev\BGE\AssetPipeline\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\Dev\BGE\AI\.;G:\Dev\BGE\AssetPipeline\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -197,7 +197,7 @@ exit /b %1
 if %errorlevel% neq 0 goto :VCEnd</Command>
     </PostBuildEvent>
     <Link>
-      <AdditionalDependencies>..\..\Core\Release\BGECore.lib;..\..\Simulation\Release\BGESimulation.lib;..\..\Renderer\Release\BGERenderer.lib;G:\Vulkan\Lib\vulkan-1.lib;..\..\Core\Release\BGECore.lib;G:\vcpkg\installed\x64-windows\lib\imgui.lib;G:\vcpkg\installed\x64-windows\lib\glfw3dll.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\..\Core\Release\BGECore.lib;..\..\Simulation\Release\BGESimulation.lib;..\..\Renderer\Release\BGERenderer.lib;..\..\AI\Release\BGEAI.lib;..\..\AssetPipeline\Release\BGEAssetPipeline.lib;..\..\Simulation\Release\BGESimulation.lib;G:\Vulkan\Lib\vulkan-1.lib;..\..\Core\Release\BGECore.lib;G:\vcpkg\installed\x64-windows\lib\imgui.lib;G:\vcpkg\installed\x64-windows\lib\glfw3dll.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -212,7 +212,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\Dev\BGE\AI\.;G:\Dev\BGE\AssetPipeline\.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "G:/vcpkg/installed/x64-windows/include" /external:I "G:/Vulkan/Include"</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -237,10 +237,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_WARNINGS;GLFW_DLL;BGE_COMPUTE_SUPPORT;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\Dev\BGE\AI\.;G:\Dev\BGE\AssetPipeline\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\Dev\BGE\AI\.;G:\Dev\BGE\AssetPipeline\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -260,7 +260,7 @@ exit /b %1
 if %errorlevel% neq 0 goto :VCEnd</Command>
     </PostBuildEvent>
     <Link>
-      <AdditionalDependencies>..\..\Core\MinSizeRel\BGECore.lib;..\..\Simulation\MinSizeRel\BGESimulation.lib;..\..\Renderer\MinSizeRel\BGERenderer.lib;G:\Vulkan\Lib\vulkan-1.lib;..\..\Core\MinSizeRel\BGECore.lib;G:\vcpkg\installed\x64-windows\lib\imgui.lib;G:\vcpkg\installed\x64-windows\lib\glfw3dll.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\..\Core\MinSizeRel\BGECore.lib;..\..\Simulation\MinSizeRel\BGESimulation.lib;..\..\Renderer\MinSizeRel\BGERenderer.lib;..\..\AI\MinSizeRel\BGEAI.lib;..\..\AssetPipeline\MinSizeRel\BGEAssetPipeline.lib;..\..\Simulation\MinSizeRel\BGESimulation.lib;G:\Vulkan\Lib\vulkan-1.lib;..\..\Core\MinSizeRel\BGECore.lib;G:\vcpkg\installed\x64-windows\lib\imgui.lib;G:\vcpkg\installed\x64-windows\lib\glfw3dll.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -275,7 +275,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\Dev\BGE\AI\.;G:\Dev\BGE\AssetPipeline\.;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "G:/vcpkg/installed/x64-windows/include" /external:I "G:/Vulkan/Include"</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -299,10 +299,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_WARNINGS;GLFW_DLL;BGE_COMPUTE_SUPPORT;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\Dev\BGE\AI\.;G:\Dev\BGE\AssetPipeline\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>G:\Dev\BGE\Core\.;G:\Dev\BGE\Simulation\.;G:\Dev\BGE\Simulation\..\ThirdParty;G:\Dev\BGE\Renderer\.;G:\Dev\BGE\AI\.;G:\Dev\BGE\AssetPipeline\.;G:\vcpkg\installed\x64-windows\include;G:\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -322,7 +322,7 @@ exit /b %1
 if %errorlevel% neq 0 goto :VCEnd</Command>
     </PostBuildEvent>
     <Link>
-      <AdditionalDependencies>..\..\Core\RelWithDebInfo\BGECore.lib;..\..\Simulation\RelWithDebInfo\BGESimulation.lib;..\..\Renderer\RelWithDebInfo\BGERenderer.lib;G:\Vulkan\Lib\vulkan-1.lib;..\..\Core\RelWithDebInfo\BGECore.lib;G:\vcpkg\installed\x64-windows\lib\imgui.lib;G:\vcpkg\installed\x64-windows\lib\glfw3dll.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\..\Core\RelWithDebInfo\BGECore.lib;..\..\Simulation\RelWithDebInfo\BGESimulation.lib;..\..\Renderer\RelWithDebInfo\BGERenderer.lib;..\..\AI\RelWithDebInfo\BGEAI.lib;..\..\AssetPipeline\RelWithDebInfo\BGEAssetPipeline.lib;..\..\Simulation\RelWithDebInfo\BGESimulation.lib;G:\Vulkan\Lib\vulkan-1.lib;..\..\Core\RelWithDebInfo\BGECore.lib;G:\vcpkg\installed\x64-windows\lib\imgui.lib;G:\vcpkg\installed\x64-windows\lib\glfw3dll.lib;opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -402,6 +402,14 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Name>ZERO_CHECK</Name>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="G:\Dev\BGE\build\AI\BGEAI.vcxproj">
+      <Project>{F2B36CB1-E846-36BC-BDEE-882E3D34DA51}</Project>
+      <Name>BGEAI</Name>
+    </ProjectReference>
+    <ProjectReference Include="G:\Dev\BGE\build\AssetPipeline\BGEAssetPipeline.vcxproj">
+      <Project>{CD87DC96-6A87-3156-A35D-7EA98E9BB647}</Project>
+      <Name>BGEAssetPipeline</Name>
     </ProjectReference>
     <ProjectReference Include="G:\Dev\BGE\build\Core\BGECore.vcxproj">
       <Project>{C40756BA-BB1A-320B-977F-35180DD8A8E6}</Project>

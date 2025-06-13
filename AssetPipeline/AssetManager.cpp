@@ -1,7 +1,8 @@
-#define STB_IMAGE_IMPLEMENTATION
-#include "../ThirdParty/stb/stb_image.h"
 #include "AssetManager.h"
 #include <iostream> // For placeholder logging
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "../ThirdParty/stb/stb_image.h"
 
 namespace BGE {
 

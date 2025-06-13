@@ -34,6 +34,9 @@
     <ClCompile Include="G:\Dev\BGE\Simulation\World\WorldGenerator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="G:\Dev\BGE\Simulation\Systems\MovementSystem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="G:\Dev\BGE\Simulation\Compute\SimulationCompute.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -73,6 +76,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="G:\Dev\BGE\Simulation\World\WorldGenerator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\Dev\BGE\Simulation\Systems\MovementSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="G:\Dev\BGE\Simulation\Compute\SimulationCompute.h">
