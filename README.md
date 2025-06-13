@@ -1,4 +1,4 @@
-# BGE (Burning Glass Engine)
+# BGE (Breaking Ground Engine)
 
 A high-performance 2D falling sand game engine with modern graphics capabilities including 2D raytracing and global illumination.
 
