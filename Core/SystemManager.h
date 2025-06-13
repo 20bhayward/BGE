@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <memory> // For std::unique_ptr if chosen, or for general good practice.
-#include "Core/ISystem.h" // Needs to know the ISystem interface.
+#include "ISystem.h" // Needs to know the ISystem interface.
 
 namespace BGE
 {
