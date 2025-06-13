@@ -11,6 +11,7 @@ class AudioSystem;
 class InputManager;
 class AssetManager;
 class UISystem;
+class ParticleSystem; // Forward declare ParticleSystem
 
 namespace Services {
     template<typename T>
@@ -25,6 +26,7 @@ namespace Services {
     std::shared_ptr<InputManager> GetInput();
     std::shared_ptr<AssetManager> GetAssets();
     std::shared_ptr<UISystem> GetUI();
+    std::shared_ptr<ParticleSystem> GetParticles(); // Add getter for ParticleSystem
 }
 
 } // namespace BGE
