@@ -16,8 +16,8 @@ public:
     AISystem();
     virtual ~AISystem();
 
-    bool Initialize() override;
-    void Shutdown() override;
+    bool Initialize();
+    void Shutdown();
     void Update(float deltaTime) override;
     const char* GetName() const override { return "AISystem"; }
 
