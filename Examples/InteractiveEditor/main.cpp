@@ -14,6 +14,7 @@
 #include "../../Core/Input/InputManager.h" // For InputManager and Keys
 #include "../../Core/Input/Keyboard.h"    // For Keys::K
 #include "../../Renderer/ParticleSystem.h" // For ParticleSystem type if needed, or just Services
+#include "../../Simulation/Materials/MaterialDatabase.h" // Added for MaterialDatabase
 // Core/Services.h is already included
 
 using namespace BGE;
@@ -52,8 +53,28 @@ public:
         
         m_materials = m_world->GetMaterialSystem();
         
-        // Create materials
-        CreateMaterials();
+        // Load materials from file
+        if (m_materials) {
+            BGE::MaterialDatabase materialDB;
+            if (!materialDB.LoadFromFile("Assets/Data/materials.json", *m_materials)) {
+                BGE_LOG_ERROR("InteractiveEditorApp", "Failed to load materials from Assets/Data/materials.json. Falling back to CreateMaterials().");
+                // Fallback or error handling if JSON loading fails
+                CreateMaterials(); // Keep this as a fallback if JSON loading fails.
+            } else {
+                 BGE_LOG_INFO("InteractiveEditorApp", "Successfully loaded materials from Assets/Data/materials.json");
+                 // If JSON loading is successful, CreateMaterials() will be emptied or deprecated.
+                 // For now, we ensure it's called if loading fails, and otherwise the loaded materials are used.
+                 // The task is to empty CreateMaterials(), implying JSON loading is the primary method.
+                 // So, if LoadFromFile is successful, we don't call CreateMaterials().
+                 // If it fails, the original CreateMaterials() will run.
+                 // The next step will be to empty CreateMaterials().
+            }
+        } else {
+            BGE_LOG_ERROR("InteractiveEditorApp", "MaterialSystem is null. Cannot load or create materials.");
+            return false;
+        }
+
+        // CreateMaterials(); // Original call location - now handled above with LoadFromFile
         
         // Initialize material tools
         if (!m_materialTools.Initialize(m_world.get())) {
@@ -192,151 +213,23 @@ public:
 
 private:
     void CreateMaterials() {
-        // Create sand material
-        m_materials->CreateMaterialBuilder("Sand")
-            .SetColor(194, 178, 128)
-            .SetBehavior(MaterialBehavior::Powder)
-            .SetDensity(1.5f)
-            .GetID();
-        
-        // Create water material
-        MaterialID water = m_materials->CreateMaterialBuilder("Water")
-            .SetColor(64, 164, 223, 180)
-            .SetBehavior(MaterialBehavior::Liquid)
-            .SetDensity(1.0f)
-            .GetID();
-        
-        // Create fire material
-        MaterialID fire = m_materials->CreateMaterialBuilder("Fire")
-            .SetColor(255, 100, 0)
-            .SetBehavior(MaterialBehavior::Fire)
-            .SetEmission(2.0f)
-            .SetDensity(0.1f)
-            .GetID();
-        
-        // Create wood material
-        MaterialID wood = m_materials->CreateMaterialBuilder("Wood")
-            .SetColor(139, 69, 19)
-            .SetBehavior(MaterialBehavior::Static)
-            .SetDensity(0.8f)
-            .GetID();
-        
-        // Create stone material
-        m_materials->CreateMaterialBuilder("Stone")
-            .SetColor(128, 128, 128)
-            .SetBehavior(MaterialBehavior::Static)
-            .SetDensity(2.5f)
-            .GetID();
-        
-        // Create oil material
-        m_materials->CreateMaterialBuilder("Oil")
-            .SetColor(40, 40, 20, 200)
-            .SetBehavior(MaterialBehavior::Liquid)
-            .SetDensity(0.9f)
-            .GetID();
-        
-        // Create steam material
-        MaterialID steam = m_materials->CreateMaterialBuilder("Steam")
-            .SetColor(255, 255, 255, 180)
-            .SetBehavior(MaterialBehavior::Gas)
-            .SetDensity(0.1f)
-            .GetID();
-        
-        // Create natural gas (light, fast-rising)
-        MaterialID naturalGas = m_materials->CreateMaterialBuilder("NaturalGas")
-            .SetColor(200, 255, 200, 120)  // Light green, semi-transparent
-            .SetBehavior(MaterialBehavior::Gas)
-            .SetDensity(0.05f)  // Very light - rises quickly
-            .GetID();
-        
-        // Create thick gas (heavier, slower)
-        MaterialID thickGas = m_materials->CreateMaterialBuilder("ThickGas")
-            .SetColor(150, 150, 255, 160)  // Light blue, more opaque
-            .SetBehavior(MaterialBehavior::Gas)
-            .SetDensity(0.3f)   // Heavier - rises slower, spreads more
-            .GetID();
-        
-        // Create smoke (dark, disperses over time)
-        MaterialID smoke = m_materials->CreateMaterialBuilder("Smoke")
-            .SetColor(80, 80, 80, 140)     // Dark gray, semi-transparent
-            .SetBehavior(MaterialBehavior::Gas)
-            .SetDensity(0.08f)  // Light but not as light as natural gas
-            .GetID();
-        
-        // Create poison gas (dangerous, visible)
-        MaterialID poisonGas = m_materials->CreateMaterialBuilder("PoisonGas")
-            .SetColor(100, 255, 100, 180)  // Sickly green, more visible
-            .SetBehavior(MaterialBehavior::Gas)
-            .SetDensity(0.15f)  // Medium density - spreads at moderate speed
-            .GetID();
-        
-        // Create ash material
-        MaterialID ash = m_materials->CreateMaterialBuilder("Ash")
-            .SetColor(64, 64, 64)
-            .SetBehavior(MaterialBehavior::Powder)
-            .SetDensity(0.6f)
-            .GetID();
-        
-        // Add material reactions
-        SetupMaterialReactions(fire, wood, ash, water, steam, naturalGas, thickGas, smoke, poisonGas);
-        
-        BGE_LOG_INFO("InteractiveEditor", "Created " + std::to_string(m_materials->GetMaterialCount()) + " materials");
+        // This method is now deprecated. Materials are loaded from Assets/Data/materials.json.
+        // Kept as a fallback if JSON loading fails, or can be entirely emptied.
+        // For the purpose of this subtask, we will empty it in a subsequent step
+        // or assume that successful JSON loading means this code is effectively bypassed.
+        // If LoadFromFile fails, the original hardcoded materials will be created.
+        // To fulfill "Delete the entire body":
+        /*
+        BGE_LOG_WARNING("InteractiveEditorApp::CreateMaterials", "This method is deprecated. Materials should be loaded from JSON.");
+        // Body is deleted. If LoadFromFile failed, no materials will be created by this fallback.
+        */
+
+        // Ensuring the method is empty as per instruction for the next step.
+        // If LoadFromFile fails now, no default materials will be created by this fallback.
+        BGE_LOG_WARNING("InteractiveEditorApp::CreateMaterials", "CreateMaterials() called. This method is deprecated and should be empty. Materials and reactions are loaded from Assets/Data/materials.json. If loading failed, no fallback materials will be created here.");
     }
     
-    void SetupMaterialReactions(MaterialID fire, MaterialID wood, MaterialID ash, MaterialID water, MaterialID steam, 
-                               MaterialID naturalGas, MaterialID thickGas, MaterialID smoke, MaterialID poisonGas) {
-        // Fire + Wood -> Fire + Ash
-        MaterialReaction burnWood;
-        burnWood.reactant = wood;
-        burnWood.product1 = fire;
-        burnWood.product2 = ash;
-        burnWood.probability = 0.05f;
-        burnWood.requiresHeat = true;
-        burnWood.minTemperature = 300.0f;
-        
-        m_materials->GetMaterial(fire).AddReaction(burnWood);
-        
-        // Water + Fire -> Steam (conserve mass - water becomes steam, fire is extinguished)
-        MaterialReaction extinguishFire;
-        extinguishFire.reactant = fire;
-        extinguishFire.product1 = steam;  // Water becomes steam
-        extinguishFire.product2 = MATERIAL_EMPTY;  // Fire is extinguished (disappears)
-        extinguishFire.probability = 0.05f;  // Lower probability for more realistic behavior
-        extinguishFire.requiresHeat = false;
-        
-        m_materials->GetMaterial(water).AddReaction(extinguishFire);
-        
-        // Natural Gas + Fire -> Fire + Smoke (combustion)
-        MaterialReaction burnGas;
-        burnGas.reactant = fire;
-        burnGas.product1 = fire;  // Fire spreads
-        burnGas.product2 = smoke; // Produces smoke
-        burnGas.probability = 0.2f;
-        burnGas.requiresHeat = false;
-        
-        m_materials->GetMaterial(naturalGas).AddReaction(burnGas);
-        
-        // Fire + Wood -> Fire + Smoke (realistic combustion)
-        MaterialReaction woodSmoke;
-        woodSmoke.reactant = wood;
-        woodSmoke.product1 = fire;
-        woodSmoke.product2 = smoke; // Wood burning produces smoke
-        woodSmoke.probability = 0.03f;
-        woodSmoke.requiresHeat = true;
-        woodSmoke.minTemperature = 350.0f;
-        
-        m_materials->GetMaterial(fire).AddReaction(woodSmoke);
-        
-        // Water + Poison Gas -> Water + Thick Gas (dilution)
-        MaterialReaction dilutePoison;
-        dilutePoison.reactant = poisonGas;
-        dilutePoison.product1 = water;
-        dilutePoison.product2 = thickGas; // Poison becomes less dangerous
-        dilutePoison.probability = 0.1f;
-        dilutePoison.requiresHeat = false;
-        
-        m_materials->GetMaterial(water).AddReaction(dilutePoison);
-    }
+    // Removed SetupMaterialReactions function as reactions are now data-driven from materials.json
     
     void SetupInitialWorld() {
         // Create a simple foundation for testing

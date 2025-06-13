@@ -31,7 +31,7 @@ add_library(BGESimulation STATIC
     World/WorldGenerator.cpp
 )
 
-target_include_directories(BGESimulation PUBLIC .)
+target_include_directories(BGESimulation PUBLIC . ../ThirdParty)
 target_link_libraries(BGESimulation PUBLIC BGECore)
 
 # Optional GPU compute support
