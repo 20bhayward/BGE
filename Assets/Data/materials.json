@@ -16,7 +16,36 @@
       "behavior": "Liquid",
       "color": [64, 164, 223, 180],
       "density": 1.0,
-      "hotkey": 50
+      "hotkey": 50,
+      "reactions": [
+        {
+          "reactant": "Fire",
+          "product1": "Steam",
+          "product2": "Smoke",
+          "probability": 0.5,
+          "requiresHeat": false,
+          "minTemperature": 25.0
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Fire",
+      "description": "Spreads and consumes fuel",
+      "behavior": "Gas",
+      "color": [255, 0, 0, 200],
+      "density": 0.5,
+      "hotkey": 51,
+      "reactions": [
+        {
+          "reactant": "Wood",
+          "product1": "Fire",
+          "product2": "Ash",
+          "probability": 0.05,
+          "requiresHeat": true,
+          "minTemperature": 300.0
+        }
+      ]
     },
     {
       "id": 4,
@@ -26,6 +55,33 @@
       "color": [139, 69, 19, 255],
       "density": 0.7,
       "hotkey": 52
+    },
+    {
+      "id": 5,
+      "name": "Ash",
+      "description": "Product of burning",
+      "behavior": "Powder",
+      "color": [100, 100, 100, 255],
+      "density": 0.5,
+      "hotkey": 53
+    },
+    {
+      "id": 6,
+      "name": "Steam",
+      "description": "Rises from hot water",
+      "behavior": "Gas",
+      "color": [150, 150, 150, 150],
+      "density": 0.3,
+      "hotkey": 54
+    },
+    {
+      "id": 7,
+      "name": "Smoke",
+      "description": "Rises from fire",
+      "behavior": "Gas",
+      "color": [50, 50, 50, 150],
+      "density": 0.4,
+      "hotkey": 55
     }
   ]
 }

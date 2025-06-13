@@ -164,64 +164,11 @@ private:
         */
 
         // Ensuring the method is empty as per instruction for the next step.
-        // If LoadFromFile fails now, no default materials will be created.
-        BGE_LOG_INFO("InteractiveEditorApp::CreateMaterials", "Called. If materials.json was loaded, this is redundant. If not, no default materials created here anymore.");
+        // If LoadFromFile fails now, no default materials will be created by this fallback.
+        BGE_LOG_WARNING("InteractiveEditorApp::CreateMaterials", "CreateMaterials() called. This method is deprecated and should be empty. Materials and reactions are loaded from Assets/Data/materials.json. If loading failed, no fallback materials will be created here.");
     }
     
-    void SetupMaterialReactions(MaterialID fire, MaterialID wood, MaterialID ash, MaterialID water, MaterialID steam, 
-                               MaterialID naturalGas, MaterialID thickGas, MaterialID smoke, MaterialID poisonGas) {
-        // Fire + Wood -> Fire + Ash
-        MaterialReaction burnWood;
-        burnWood.reactant = wood;
-        burnWood.product1 = fire;
-        burnWood.product2 = ash;
-        burnWood.probability = 0.05f;
-        burnWood.requiresHeat = true;
-        burnWood.minTemperature = 300.0f;
-        
-        m_materials->GetMaterial(fire).AddReaction(burnWood);
-        
-        // Water + Fire -> Steam (conserve mass - water becomes steam, fire is extinguished)
-        MaterialReaction extinguishFire;
-        extinguishFire.reactant = fire;
-        extinguishFire.product1 = steam;  // Water becomes steam
-        extinguishFire.product2 = MATERIAL_EMPTY;  // Fire is extinguished (disappears)
-        extinguishFire.probability = 0.05f;  // Lower probability for more realistic behavior
-        extinguishFire.requiresHeat = false;
-        
-        m_materials->GetMaterial(water).AddReaction(extinguishFire);
-        
-        // Natural Gas + Fire -> Fire + Smoke (combustion)
-        MaterialReaction burnGas;
-        burnGas.reactant = fire;
-        burnGas.product1 = fire;  // Fire spreads
-        burnGas.product2 = smoke; // Produces smoke
-        burnGas.probability = 0.2f;
-        burnGas.requiresHeat = false;
-        
-        m_materials->GetMaterial(naturalGas).AddReaction(burnGas);
-        
-        // Fire + Wood -> Fire + Smoke (realistic combustion)
-        MaterialReaction woodSmoke;
-        woodSmoke.reactant = wood;
-        woodSmoke.product1 = fire;
-        woodSmoke.product2 = smoke; // Wood burning produces smoke
-        woodSmoke.probability = 0.03f;
-        woodSmoke.requiresHeat = true;
-        woodSmoke.minTemperature = 350.0f;
-        
-        m_materials->GetMaterial(fire).AddReaction(woodSmoke);
-        
-        // Water + Poison Gas -> Water + Thick Gas (dilution)
-        MaterialReaction dilutePoison;
-        dilutePoison.reactant = poisonGas;
-        dilutePoison.product1 = water;
-        dilutePoison.product2 = thickGas; // Poison becomes less dangerous
-        dilutePoison.probability = 0.1f;
-        dilutePoison.requiresHeat = false;
-        
-        m_materials->GetMaterial(water).AddReaction(dilutePoison);
-    }
+    // Removed SetupMaterialReactions function as reactions are now data-driven from materials.json
     
     void SetupInitialWorld() {
         // Create a simple foundation for testing
