@@ -1,6 +1,6 @@
 #include "MaterialDatabase.h"
 #include "MaterialSystem.h"
-#include "json.hpp" // Changed: Added json.hpp include
+#include "../../ThirdParty/json/json.hpp" // Changed: Added json.hpp include
 #include <fstream>
 #include <iostream> // Changed: Kept iostream for error reporting
 

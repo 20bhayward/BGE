@@ -23,7 +23,7 @@ Vector2 PixelCamera::GetPosition() const {
 void PixelCamera::SetZoom(int zoom) {
     if (zoom < 1) {
         m_zoom = 1;
-        BGE_LOG_WARN("PixelCamera", "Zoom level cannot be less than 1. Clamped to 1.");
+        BGE_LOG_WARNING("PixelCamera", "Zoom level cannot be less than 1. Clamped to 1.");
     } else {
         m_zoom = zoom;
     }

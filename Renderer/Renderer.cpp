@@ -25,7 +25,9 @@ bool Renderer::Initialize(Window* window) {
     if (m_pixelCamera) {
         // Example: Set projection based on window size if available
         if (m_window) {
-            m_pixelCamera->SetProjection(static_cast<float>(m_window->GetWidth()), static_cast<float>(m_window->GetHeight()));
+            int width, height;
+            m_window->GetSize(width, height);
+            m_pixelCamera->SetProjection(static_cast<float>(width), static_cast<float>(height));
              BGE_LOG_INFO("Renderer", "PixelCamera initialized and projection set.");
         } else {
              BGE_LOG_INFO("Renderer", "PixelCamera initialized (window not available for initial projection).");
