@@ -112,6 +112,7 @@ if(NOT glfw3_FOUND)
             else()
                 message(WARNING "GLFW3 not found. Trying to fetch from source...")
                 set(GLFW_FETCH_FROM_SOURCE ON)
+                set(GLFW_FETCH_FROM_SOURCE OFF CACHE BOOL "Force disable GLFW source fetching" FORCE)
             endif()
         else()
             # Create target from pkg-config
@@ -142,6 +143,7 @@ add_subdirectory(Audio)
 add_subdirectory(Scripting)
 add_subdirectory(AssetPipeline)
 add_subdirectory(Runtime)
+add_subdirectory(AI)
 
 # Editor
 if(BGE_BUILD_EDITOR)
