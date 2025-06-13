@@ -1,0 +1,10 @@
+^G:\DEV\BGE\BUILD\CMAKEFILES\7AEE9FC3BF72AE8EBB9DED3FD9251129\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SG:/Dev/BGE -BG:/Dev/BGE/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file G:/Dev/BGE/build/BGE.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

@@ -86,7 +86,7 @@ public:
     // Hotkey
     int GetHotKey() const { return m_hotkey; }
 
-    friend class MaterialBuilder; // Allow MaterialBuilder to set m_hotkey
+    friend class MaterialSystem; // Allow MaterialSystem and its nested MaterialBuilder to access private members
 
 private:
     int m_hotkey = 0; // Hotkey for palette selection

@@ -10,6 +10,7 @@
 #include "Input/InputManager.h"
 #include "SystemManager.h" // Added for SystemManager
 #include "../Simulation/Systems/MovementSystem.h" // Added for MovementSystem
+#include "../AI/AISystem.h" // Added for AISystem
 #include "../Simulation/SimulationWorld.h"
 #include "../Renderer/Renderer.h"
 #include "../Renderer/ParticleSystem.h" // Added for ParticleSystem service
@@ -102,6 +103,10 @@ bool Engine::InitializeServices() {
         // Create an instance of MovementSystem and register it
         m_systemManager->RegisterSystem(new MovementSystem()); // LEAK PRONE if not managed
         BGE_LOG_INFO("Engine", "MovementSystem registered.");
+
+        // Create an instance of AISystem and register it
+        m_systemManager->RegisterSystem(new AISystem());
+        BGE_LOG_INFO("Engine", "AISystem registered.");
         
         return true;
     }

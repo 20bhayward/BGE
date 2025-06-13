@@ -1,19 +1,23 @@
 #pragma once
 
 #include <string>
-#include <filesystem> // Required for std::filesystem::file_time_type
-#include <cstdint>    // Required for uint32_t
+#include <filesystem>
+#include <cstdint>
 
 namespace BGE {
 
 struct Texture {
-    uint32_t rendererId; // The handle from the graphics API (e.g., OpenGL texture ID)
     std::string path;
-    int width;
-    int height;
-    int channels;
-    // The last-modified timestamp of the file when it was loaded
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    uint32_t rendererId = 0; // GPU texture ID
     std::filesystem::file_time_type lastWriteTime;
+    
+    // Optional: texture parameters
+    bool mipmaps = false;
+    bool linearFiltering = true;
+    bool clampToEdge = false;
 };
 
 } // namespace BGE

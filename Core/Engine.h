@@ -4,7 +4,7 @@
 #include <string>
 #include <functional>
 
-#include "Core/SystemManager.h" // Required for std::unique_ptr<SystemManager>
+#include "SystemManager.h" // Required for std::unique_ptr<SystemManager>
 
 namespace BGE {
 

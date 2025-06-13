@@ -1,5 +1,6 @@
 add_subdirectory(BasicSandbox)
 add_subdirectory(InteractiveEditor)
+add_subdirectory(FullDemo)
 
 # Additional examples
 if(BGE_BUILD_EXAMPLES)
