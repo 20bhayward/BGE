@@ -8,6 +8,8 @@
 #include "ConfigManager.h"
 #include "Entity.h"
 #include "Input/InputManager.h"
+#include "SystemManager.h" // Added for SystemManager
+#include "../Simulation/Systems/MovementSystem.h" // Added for MovementSystem
 #include "../Simulation/SimulationWorld.h"
 #include "../Renderer/Renderer.h"
 #include "../Audio/AudioSystem.h"
@@ -91,6 +93,14 @@ bool Engine::InitializeServices() {
         
         // Register core services
         RegisterCoreServices();
+
+        // Instantiate the SystemManager
+        m_systemManager = std::make_unique<SystemManager>();
+        BGE_LOG_INFO("Engine", "SystemManager created.");
+
+        // Create an instance of MovementSystem and register it
+        m_systemManager->RegisterSystem(new MovementSystem()); // LEAK PRONE if not managed
+        BGE_LOG_INFO("Engine", "MovementSystem registered.");
         
         return true;
     }
@@ -289,6 +299,12 @@ void Engine::Update(float deltaTime) {
     // Update audio system
     if (auto audio = serviceLocator.GetService<AudioSystem>()) {
         audio->Update(deltaTime);
+    }
+
+    // Update all registered systems
+    if (m_systemManager)
+    {
+        m_systemManager->UpdateAll(deltaTime);
     }
 }
 
