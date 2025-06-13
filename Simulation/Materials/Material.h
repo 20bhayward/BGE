@@ -83,7 +83,13 @@ public:
     Material& SetMeltingPoint(float temp) { m_thermalProps.meltingPoint = temp; return *this; }
     Material& SetEmission(float emission) { m_opticalProps.emission = emission; return *this; }
     
+    // Hotkey
+    int GetHotKey() const { return m_hotkey; }
+
+    friend class MaterialBuilder; // Allow MaterialBuilder to set m_hotkey
+
 private:
+    int m_hotkey = 0; // Hotkey for palette selection
     MaterialID m_id = MATERIAL_EMPTY;
     std::string m_name;
     

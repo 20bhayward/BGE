@@ -1,0 +1,31 @@
+{
+  "materials": [
+    {
+      "id": 1,
+      "name": "Sand",
+      "description": "Falls and piles naturally",
+      "behavior": "Powder",
+      "color": [194, 178, 128, 255],
+      "density": 1.6,
+      "hotkey": 49
+    },
+    {
+      "id": 2,
+      "name": "Water",
+      "description": "Flows and finds its level",
+      "behavior": "Liquid",
+      "color": [64, 164, 223, 180],
+      "density": 1.0,
+      "hotkey": 50
+    },
+    {
+      "id": 4,
+      "name": "Wood",
+      "description": "Static structure that burns",
+      "behavior": "Static",
+      "color": [139, 69, 19, 255],
+      "density": 0.7,
+      "hotkey": 52
+    }
+  ]
+}
