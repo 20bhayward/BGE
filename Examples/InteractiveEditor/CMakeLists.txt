@@ -6,6 +6,8 @@ target_link_libraries(InteractiveEditor
     BGECore
     BGESimulation
     BGERenderer
+    BGEAI
+    BGEAssetPipeline
 )
 
 # Copy executable to build output

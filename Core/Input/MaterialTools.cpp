@@ -1,5 +1,6 @@
 #include "MaterialTools.h"
 #include "../../Simulation/SimulationWorld.h"
+#include "../Logger.h"
 #include <iostream>
 
 namespace BGE {
@@ -119,6 +120,10 @@ void MaterialTools::SetViewport(int viewportX, int viewportY, int viewportWidth,
     m_viewportY = viewportY;
     m_viewportWidth = viewportWidth;
     m_viewportHeight = viewportHeight;
+    
+    BGE_LOG_INFO("MaterialTools", "Viewport set to: (" + std::to_string(viewportX) + "," + 
+                 std::to_string(viewportY) + ") size " + std::to_string(viewportWidth) + "x" + 
+                 std::to_string(viewportHeight));
 }
 
 void MaterialTools::ScreenToSimulation(float screenX, float screenY, int& simX, int& simY) const {
@@ -131,8 +136,19 @@ void MaterialTools::ScreenToSimulation(float screenX, float screenY, int& simX, 
     float relativeX = (screenX - m_viewportX) / m_viewportWidth;
     float relativeY = (screenY - m_viewportY) / m_viewportHeight;
     
+    // Flip Y coordinate since screen Y=0 is at top, but OpenGL Y=0 is at bottom
+    relativeY = 1.0f - relativeY;
+    
     simX = static_cast<int>(relativeX * m_world->GetWidth());
     simY = static_cast<int>(relativeY * m_world->GetHeight());
+    
+    // Debug coordinate conversion occasionally
+    static int conversionCounter = 0;
+    if (++conversionCounter % 30 == 0) { // Log every 30th conversion
+        BGE_LOG_INFO("MaterialTools", "Coordinate conversion: screen(" + 
+                     std::to_string(screenX) + "," + std::to_string(screenY) + ") → sim(" +
+                     std::to_string(simX) + "," + std::to_string(simY) + ")");
+    }
 }
 
 void MaterialTools::PaintAt(float screenX, float screenY) {

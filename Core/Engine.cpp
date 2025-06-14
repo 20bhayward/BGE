@@ -8,8 +8,12 @@
 #include "ConfigManager.h"
 #include "Entity.h"
 #include "Input/InputManager.h"
+#include "SystemManager.h" // Added for SystemManager
+#include "../Simulation/Systems/MovementSystem.h" // Added for MovementSystem
+#include "../AI/AISystem.h" // Added for AISystem
 #include "../Simulation/SimulationWorld.h"
 #include "../Renderer/Renderer.h"
+#include "../Renderer/ParticleSystem.h" // Added for ParticleSystem service
 #include "../Audio/AudioSystem.h"
 #include "../AssetPipeline/AssetManager.h"
 #include "UI/UISystem.h"
@@ -91,6 +95,18 @@ bool Engine::InitializeServices() {
         
         // Register core services
         RegisterCoreServices();
+
+        // Instantiate the SystemManager
+        m_systemManager = std::make_unique<SystemManager>();
+        BGE_LOG_INFO("Engine", "SystemManager created.");
+
+        // Create an instance of MovementSystem and register it
+        m_systemManager->RegisterSystem(new MovementSystem()); // LEAK PRONE if not managed
+        BGE_LOG_INFO("Engine", "MovementSystem registered.");
+
+        // Create an instance of AISystem and register it
+        m_systemManager->RegisterSystem(new AISystem());
+        BGE_LOG_INFO("Engine", "AISystem registered.");
         
         return true;
     }
@@ -150,6 +166,15 @@ void Engine::RegisterCoreServices() {
         serviceLocator.RegisterService<UISystem>(ui);
         BGE_LOG_INFO("Engine", "UISystem service registered");
     }
+
+  // Initialize and register ParticleSystem
+  auto particleSystem = std::make_shared<ParticleSystem>();
+  if (particleSystem && particleSystem->Initialize()) { // Default pool size
+      serviceLocator.RegisterService<ParticleSystem>(particleSystem);
+      BGE_LOG_INFO("Engine", "ParticleSystem service registered");
+  } else {
+      BGE_LOG_ERROR("Engine", "Failed to initialize or create ParticleSystem service");
+  }
 }
 
 void Engine::Shutdown() {
@@ -249,10 +274,14 @@ void Engine::MainLoop() {
         Update(m_deltaTime);
         
         // Render
+        BGE_LOG_TRACE("Engine", "Main loop - calling Render()");
         Render();
+        BGE_LOG_TRACE("Engine", "Main loop - Render() completed");
         
         // Present
+        BGE_LOG_TRACE("Engine", "Main loop - calling SwapBuffers()");
         m_window->SwapBuffers();
+        BGE_LOG_TRACE("Engine", "Main loop - SwapBuffers() completed");
         
         ++m_frameCount;
         
@@ -290,6 +319,22 @@ void Engine::Update(float deltaTime) {
     if (auto audio = serviceLocator.GetService<AudioSystem>()) {
         audio->Update(deltaTime);
     }
+
+    // Update all registered systems
+    if (m_systemManager)
+    {
+        m_systemManager->UpdateAll(deltaTime);
+    }
+
+    // Update Particle System
+    if (auto ps = serviceLocator.GetService<ParticleSystem>()) {
+        ps->Update(deltaTime);
+    }
+
+    // Update Asset Manager (for hot-reloading)
+    if (auto assets = serviceLocator.GetService<AssetManager>()) {
+        assets->Update();
+    }
 }
 
 void Engine::Render() {
@@ -298,31 +343,60 @@ void Engine::Render() {
     auto world = serviceLocator.GetService<SimulationWorld>();
     auto ui = serviceLocator.GetService<UISystem>();
     
-    if (renderer) {
-        renderer->BeginFrame();
-        
-        // Render simulation world
-        if (world) {
-            renderer->RenderWorld(world.get());
-        }
-        
-        // Begin UI frame
-        if (ui) {
-            ui->BeginFrame();
-        }
-        
-        // Render application (including UI)
-        if (m_application) {
-            m_application->Render();
-        }
-        
-        // End UI frame and render UI
-        if (ui) {
-            ui->EndFrame();
-        }
-        
-        renderer->EndFrame();
+    static int renderCallCounter = 0;
+    renderCallCounter++;
+    
+    if (!renderer) {
+        BGE_LOG_ERROR("Engine", "No renderer service available for rendering!");
+        return;
     }
+    
+    BGE_LOG_TRACE("Engine", "Render() call #" + std::to_string(renderCallCounter) + " - Starting BeginFrame()");
+    renderer->BeginFrame();
+    BGE_LOG_TRACE("Engine", "BeginFrame() completed");
+    
+    // Render simulation world
+    if (world) {
+        BGE_LOG_TRACE("Engine", "Calling RenderWorld() with world data");
+        renderer->RenderWorld(world.get());
+        BGE_LOG_TRACE("Engine", "RenderWorld() completed");
+    } else {
+        BGE_LOG_ERROR("Engine", "No simulation world available for rendering!");
+    }
+    
+    // Begin UI frame
+    if (ui) {
+        BGE_LOG_TRACE("Engine", "Starting UI BeginFrame()");
+        ui->BeginFrame();
+        BGE_LOG_TRACE("Engine", "UI BeginFrame() completed");
+    } else {
+        BGE_LOG_ERROR("Engine", "No UI system available!");
+    }
+    
+    // Render application (including UI)
+    if (m_application) {
+        BGE_LOG_TRACE("Engine", "Calling application Render()");
+        m_application->Render();
+        BGE_LOG_TRACE("Engine", "Application Render() completed");
+    } else {
+        BGE_LOG_ERROR("Engine", "No application available for rendering!");
+    }
+
+    // Render particles (via Renderer facade)
+    BGE_LOG_TRACE("Engine", "Calling RenderParticles()");
+    renderer->RenderParticles();
+    BGE_LOG_TRACE("Engine", "RenderParticles() completed");
+    
+    // End UI frame and render UI
+    if (ui) {
+        BGE_LOG_TRACE("Engine", "Starting UI EndFrame()");
+        ui->EndFrame();
+        BGE_LOG_TRACE("Engine", "UI EndFrame() completed");
+    }
+    
+    BGE_LOG_TRACE("Engine", "Starting renderer EndFrame()");
+    renderer->EndFrame();
+    BGE_LOG_TRACE("Engine", "Render() call #" + std::to_string(renderCallCounter) + " completed");
 }
 
 void Engine::RegisterShutdownCallback(ShutdownCallback callback) {

@@ -69,6 +69,11 @@ public:
         operator MaterialID() const {
             return m_material.GetID();
         }
+
+        MaterialBuilder& SetHotKey(int hotkey) {
+            m_material.m_hotkey = hotkey; // Directly set the hotkey via friend access
+            return *this;
+        }
         
     private:
         Material& m_material;

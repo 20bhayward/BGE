@@ -29,9 +29,13 @@ add_library(BGESimulation STATIC
     World/ChunkManager.cpp
     World/WorldGenerator.h
     World/WorldGenerator.cpp
+    
+    # Systems
+    Systems/MovementSystem.h
+    Systems/MovementSystem.cpp
 )
 
-target_include_directories(BGESimulation PUBLIC .)
+target_include_directories(BGESimulation PUBLIC . ../ThirdParty)
 target_link_libraries(BGESimulation PUBLIC BGECore)
 
 # Optional GPU compute support

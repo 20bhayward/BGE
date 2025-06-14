@@ -18,6 +18,9 @@ add_library(BGECore STATIC
     Services.h
     Services.cpp
     Components.h
+    SystemManager.h
+    SystemManager.cpp
+    ISystem.h
     
     # Math
     Math/Vector2.h

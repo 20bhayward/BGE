@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include "../../Input/InputManager.h"
+#include "../../Logger.h"
 
 namespace BGE {
 
@@ -83,10 +84,10 @@ bool Window::Initialize(const WindowConfig& config) {
         return false;
     }
     
-    // Configure GLFW for OpenGL
+    // Configure GLFW for OpenGL - use Compatibility Profile to allow legacy calls
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, config.resizable ? GLFW_TRUE : GLFW_FALSE);
     glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
     
@@ -139,7 +140,11 @@ void Window::PollEvents() {
 
 void Window::SwapBuffers() {
     if (m_impl->glfwWindow) {
+        BGE_LOG_TRACE("Window", "Swapping OpenGL buffers");
         glfwSwapBuffers(m_impl->glfwWindow);
+        BGE_LOG_TRACE("Window", "Buffer swap completed");
+    } else {
+        BGE_LOG_ERROR("Window", "Cannot swap buffers - GLFW window is null!");
     }
 }
 

@@ -11,6 +11,12 @@
 #include "../../Core/UI/MaterialEditorUI.h"
 #include "../../Simulation/SimulationWorld.h"
 #include "../../Simulation/Materials/MaterialSystem.h"
+#include "../../Core/Input/InputManager.h" // For InputManager and Keys
+#include "../../Core/Input/Keyboard.h"    // For Keys::K
+#include "../../Renderer/ParticleSystem.h" // For ParticleSystem type if needed, or just Services
+#include "../../Renderer/Renderer.h" // For SetSimulationViewport method
+#include "../../Simulation/Materials/MaterialDatabase.h" // Added for MaterialDatabase
+// Core/Services.h is already included
 
 using namespace BGE;
 
@@ -48,8 +54,34 @@ public:
         
         m_materials = m_world->GetMaterialSystem();
         
-        // Create materials
-        CreateMaterials();
+        // Load materials from file
+        if (m_materials) {
+            BGE::MaterialDatabase materialDB;
+            if (!materialDB.LoadFromFile("Assets/Data/materials.json", *m_materials)) {
+                BGE_LOG_ERROR("InteractiveEditorApp", "Failed to load materials from Assets/Data/materials.json. Trying absolute path...");
+                // Try absolute path as fallback
+                if (materialDB.LoadFromFile("../../../../Assets/Data/materials.json", *m_materials)) {
+                    BGE_LOG_INFO("InteractiveEditorApp", "Successfully loaded materials from absolute path");
+                } else {
+                    BGE_LOG_ERROR("InteractiveEditorApp", "Failed to load materials from both relative and absolute paths. Falling back to CreateMaterials().");
+                    // Fallback or error handling if JSON loading fails
+                    CreateMaterials(); // Keep this as a fallback if JSON loading fails.
+                }
+            } else {
+                 BGE_LOG_INFO("InteractiveEditorApp", "Successfully loaded materials from Assets/Data/materials.json");
+                 // If JSON loading is successful, CreateMaterials() will be emptied or deprecated.
+                 // For now, we ensure it's called if loading fails, and otherwise the loaded materials are used.
+                 // The task is to empty CreateMaterials(), implying JSON loading is the primary method.
+                 // So, if LoadFromFile is successful, we don't call CreateMaterials().
+                 // If it fails, the original CreateMaterials() will run.
+                 // The next step will be to empty CreateMaterials().
+            }
+        } else {
+            BGE_LOG_ERROR("InteractiveEditorApp", "MaterialSystem is null. Cannot load or create materials.");
+            return false;
+        }
+
+        // CreateMaterials(); // Original call location - now handled above with LoadFromFile
         
         // Initialize material tools
         if (!m_materialTools.Initialize(m_world.get())) {
@@ -57,11 +89,28 @@ public:
             return false;
         }
         
-        // Get viewport settings from config
-        auto& config = ConfigManager::Instance();
-        int windowWidth = config.GetInt("window.width", 1280);
-        int windowHeight = config.GetInt("window.height", 720);
-        m_materialTools.SetViewport(0, 0, windowWidth, windowHeight);
+        // Calculate simulation rendering area (exclude UI panels)
+        const int PALETTE_WIDTH = 200;  // Material palette width
+        const int MENU_HEIGHT = 20;     // Main menu bar height
+        const int SIM_SIZE = 512;       // Simulation world is 512x512
+        
+        // Position simulation at native 512x512 resolution in the available space
+        int simViewportX = PALETTE_WIDTH;
+        int simViewportY = MENU_HEIGHT;
+        int simViewportWidth = SIM_SIZE;   // Keep native resolution
+        int simViewportHeight = SIM_SIZE;  // Keep native resolution
+        
+        m_materialTools.SetViewport(simViewportX, simViewportY, simViewportWidth, simViewportHeight);
+        
+        // Also set the renderer's viewport so OpenGL renders to the correct area
+        auto renderer = Services::GetRenderer();
+        if (renderer) {
+            renderer->SetSimulationViewport(simViewportX, simViewportY, simViewportWidth, simViewportHeight);
+        }
+        
+        BGE_LOG_INFO("InteractiveEditor", "Simulation viewport set to: (" + 
+                     std::to_string(simViewportX) + "," + std::to_string(simViewportY) + 
+                     ") size " + std::to_string(simViewportWidth) + "x" + std::to_string(simViewportHeight));
         
         // Initialize UI
         m_editorUI.Initialize(&m_materialTools, m_world.get());
@@ -74,6 +123,25 @@ public:
         
         // Create some editor entities for demonstration
         CreateEditorEntities();
+
+        // BEGIN: Added for MovementSystem test
+        auto& entityManager = BGE::EntityManager::Instance();
+        auto testEntity = entityManager.CreateEntity("MovingEntity");
+
+        if (testEntity)
+        {
+            testEntity->AddComponent<BGE::TransformComponent>(); // Default position is {0,0,0}
+            testEntity->AddComponent<BGE::VelocityComponent>(BGE::Vector3{10.0f, 0.0f, 0.0f});
+
+            m_testEntityId = testEntity->GetID(); // Store the ID
+            // Use "InteractiveEditor" for subsystem name to match existing logs
+            BGE_LOG_INFO("InteractiveEditor", "Created MovingEntity with ID: " + std::to_string(m_testEntityId));
+        }
+        else
+        {
+            BGE_LOG_ERROR("InteractiveEditor", "Failed to create MovingEntity.");
+        }
+        // END: Added for MovementSystem test
         
         BGE_LOG_INFO("InteractiveEditor", "Interactive Editor initialized successfully");
         return true;
@@ -89,6 +157,28 @@ public:
         
         // Update material tools
         m_materialTools.Update(deltaTime);
+
+        // BEGIN: Added for MovementSystem test
+        if (m_testEntityId != BGE::INVALID_ENTITY_ID) // Check if ID is valid
+        {
+            auto* entity = BGE::EntityManager::Instance().GetEntity(m_testEntityId);
+            if (entity)
+            {
+                auto* transform = entity->GetComponent<BGE::TransformComponent>();
+                if (transform)
+                {
+                    // Ensure BGE_LOG_DEBUG takes (const char* system, const char* message)
+                    std::string logMessage = "Entity Position: " + std::to_string(transform->position.x);
+                    BGE_LOG_DEBUG("Test", logMessage.c_str()); // Using "Test" as the system name for this log
+                }
+            }
+            // else
+            // {
+                // Entity might have been destroyed, log this once perhaps
+                // BGE_LOG_WARN("InteractiveEditor", "MovingEntity not found during update.");
+            // }
+        }
+        // END: Added for MovementSystem test
     }
     
     void Render() override {
@@ -126,156 +216,44 @@ public:
                 m_world->Clear();
                 BGE_LOG_INFO("InteractiveEditor", "World cleared");
                 break;
+            case Keys::K: // Or use 75 if Keys::K is not defined/found
+            {
+                BGE_LOG_INFO("InteractiveEditorApp", "K key pressed - creating sparks!");
+                auto inputManager = Services::GetInput();
+                auto particleSystem = Services::GetParticles();
+
+                if (inputManager && particleSystem) {
+                    float mouseX = 0.0f, mouseY = 0.0f;
+                    inputManager->GetMousePosition(mouseX, mouseY);
+                    particleSystem->CreateSparks(BGE::Vector2(mouseX, mouseY), 25);
+                } else {
+                    if (!inputManager) BGE_LOG_ERROR("InteractiveEditorApp", "InputManager service not found for sparks.");
+                    if (!particleSystem) BGE_LOG_ERROR("InteractiveEditorApp", "ParticleSystem service not found for sparks.");
+                }
+                break;
+            }
         }
     }
 
 private:
     void CreateMaterials() {
-        // Create sand material
-        m_materials->CreateMaterialBuilder("Sand")
-            .SetColor(194, 178, 128)
-            .SetBehavior(MaterialBehavior::Powder)
-            .SetDensity(1.5f)
-            .GetID();
-        
-        // Create water material
-        MaterialID water = m_materials->CreateMaterialBuilder("Water")
-            .SetColor(64, 164, 223, 180)
-            .SetBehavior(MaterialBehavior::Liquid)
-            .SetDensity(1.0f)
-            .GetID();
-        
-        // Create fire material
-        MaterialID fire = m_materials->CreateMaterialBuilder("Fire")
-            .SetColor(255, 100, 0)
-            .SetBehavior(MaterialBehavior::Fire)
-            .SetEmission(2.0f)
-            .SetDensity(0.1f)
-            .GetID();
-        
-        // Create wood material
-        MaterialID wood = m_materials->CreateMaterialBuilder("Wood")
-            .SetColor(139, 69, 19)
-            .SetBehavior(MaterialBehavior::Static)
-            .SetDensity(0.8f)
-            .GetID();
-        
-        // Create stone material
-        m_materials->CreateMaterialBuilder("Stone")
-            .SetColor(128, 128, 128)
-            .SetBehavior(MaterialBehavior::Static)
-            .SetDensity(2.5f)
-            .GetID();
-        
-        // Create oil material
-        m_materials->CreateMaterialBuilder("Oil")
-            .SetColor(40, 40, 20, 200)
-            .SetBehavior(MaterialBehavior::Liquid)
-            .SetDensity(0.9f)
-            .GetID();
-        
-        // Create steam material
-        MaterialID steam = m_materials->CreateMaterialBuilder("Steam")
-            .SetColor(255, 255, 255, 180)
-            .SetBehavior(MaterialBehavior::Gas)
-            .SetDensity(0.1f)
-            .GetID();
-        
-        // Create natural gas (light, fast-rising)
-        MaterialID naturalGas = m_materials->CreateMaterialBuilder("NaturalGas")
-            .SetColor(200, 255, 200, 120)  // Light green, semi-transparent
-            .SetBehavior(MaterialBehavior::Gas)
-            .SetDensity(0.05f)  // Very light - rises quickly
-            .GetID();
-        
-        // Create thick gas (heavier, slower)
-        MaterialID thickGas = m_materials->CreateMaterialBuilder("ThickGas")
-            .SetColor(150, 150, 255, 160)  // Light blue, more opaque
-            .SetBehavior(MaterialBehavior::Gas)
-            .SetDensity(0.3f)   // Heavier - rises slower, spreads more
-            .GetID();
-        
-        // Create smoke (dark, disperses over time)
-        MaterialID smoke = m_materials->CreateMaterialBuilder("Smoke")
-            .SetColor(80, 80, 80, 140)     // Dark gray, semi-transparent
-            .SetBehavior(MaterialBehavior::Gas)
-            .SetDensity(0.08f)  // Light but not as light as natural gas
-            .GetID();
-        
-        // Create poison gas (dangerous, visible)
-        MaterialID poisonGas = m_materials->CreateMaterialBuilder("PoisonGas")
-            .SetColor(100, 255, 100, 180)  // Sickly green, more visible
-            .SetBehavior(MaterialBehavior::Gas)
-            .SetDensity(0.15f)  // Medium density - spreads at moderate speed
-            .GetID();
-        
-        // Create ash material
-        MaterialID ash = m_materials->CreateMaterialBuilder("Ash")
-            .SetColor(64, 64, 64)
-            .SetBehavior(MaterialBehavior::Powder)
-            .SetDensity(0.6f)
-            .GetID();
-        
-        // Add material reactions
-        SetupMaterialReactions(fire, wood, ash, water, steam, naturalGas, thickGas, smoke, poisonGas);
-        
-        BGE_LOG_INFO("InteractiveEditor", "Created " + std::to_string(m_materials->GetMaterialCount()) + " materials");
+        // This method is now deprecated. Materials are loaded from Assets/Data/materials.json.
+        // Kept as a fallback if JSON loading fails, or can be entirely emptied.
+        // For the purpose of this subtask, we will empty it in a subsequent step
+        // or assume that successful JSON loading means this code is effectively bypassed.
+        // If LoadFromFile fails, the original hardcoded materials will be created.
+        // To fulfill "Delete the entire body":
+        /*
+        BGE_LOG_WARNING("InteractiveEditorApp::CreateMaterials", "This method is deprecated. Materials should be loaded from JSON.");
+        // Body is deleted. If LoadFromFile failed, no materials will be created by this fallback.
+        */
+
+        // Ensuring the method is empty as per instruction for the next step.
+        // If LoadFromFile fails now, no default materials will be created by this fallback.
+        BGE_LOG_WARNING("InteractiveEditorApp::CreateMaterials", "CreateMaterials() called. This method is deprecated and should be empty. Materials and reactions are loaded from Assets/Data/materials.json. If loading failed, no fallback materials will be created here.");
     }
     
-    void SetupMaterialReactions(MaterialID fire, MaterialID wood, MaterialID ash, MaterialID water, MaterialID steam, 
-                               MaterialID naturalGas, MaterialID thickGas, MaterialID smoke, MaterialID poisonGas) {
-        // Fire + Wood -> Fire + Ash
-        MaterialReaction burnWood;
-        burnWood.reactant = wood;
-        burnWood.product1 = fire;
-        burnWood.product2 = ash;
-        burnWood.probability = 0.05f;
-        burnWood.requiresHeat = true;
-        burnWood.minTemperature = 300.0f;
-        
-        m_materials->GetMaterial(fire).AddReaction(burnWood);
-        
-        // Water + Fire -> Steam (conserve mass - water becomes steam, fire is extinguished)
-        MaterialReaction extinguishFire;
-        extinguishFire.reactant = fire;
-        extinguishFire.product1 = steam;  // Water becomes steam
-        extinguishFire.product2 = MATERIAL_EMPTY;  // Fire is extinguished (disappears)
-        extinguishFire.probability = 0.05f;  // Lower probability for more realistic behavior
-        extinguishFire.requiresHeat = false;
-        
-        m_materials->GetMaterial(water).AddReaction(extinguishFire);
-        
-        // Natural Gas + Fire -> Fire + Smoke (combustion)
-        MaterialReaction burnGas;
-        burnGas.reactant = fire;
-        burnGas.product1 = fire;  // Fire spreads
-        burnGas.product2 = smoke; // Produces smoke
-        burnGas.probability = 0.2f;
-        burnGas.requiresHeat = false;
-        
-        m_materials->GetMaterial(naturalGas).AddReaction(burnGas);
-        
-        // Fire + Wood -> Fire + Smoke (realistic combustion)
-        MaterialReaction woodSmoke;
-        woodSmoke.reactant = wood;
-        woodSmoke.product1 = fire;
-        woodSmoke.product2 = smoke; // Wood burning produces smoke
-        woodSmoke.probability = 0.03f;
-        woodSmoke.requiresHeat = true;
-        woodSmoke.minTemperature = 350.0f;
-        
-        m_materials->GetMaterial(fire).AddReaction(woodSmoke);
-        
-        // Water + Poison Gas -> Water + Thick Gas (dilution)
-        MaterialReaction dilutePoison;
-        dilutePoison.reactant = poisonGas;
-        dilutePoison.product1 = water;
-        dilutePoison.product2 = thickGas; // Poison becomes less dangerous
-        dilutePoison.probability = 0.1f;
-        dilutePoison.requiresHeat = false;
-        
-        m_materials->GetMaterial(water).AddReaction(dilutePoison);
-    }
+    // Removed SetupMaterialReactions function as reactions are now data-driven from materials.json
     
     void SetupInitialWorld() {
         // Create a simple foundation for testing
@@ -330,8 +308,29 @@ private:
         eventBus.Subscribe<WindowResizeEvent>([this](const WindowResizeEvent& event) {
             BGE_LOG_INFO("InteractiveEditor", "Window resized to " + std::to_string(event.width) + 
                         "x" + std::to_string(event.height));
-            // Update viewport when window is resized
-            m_materialTools.SetViewport(0, 0, event.width, event.height);
+            
+            // Update viewport when window is resized (exclude UI panels)
+            const int PALETTE_WIDTH = 200;  // Material palette width
+            const int MENU_HEIGHT = 20;     // Main menu bar height
+            const int SIM_SIZE = 512;       // Simulation world is 512x512
+            
+            // Keep simulation at native 512x512 resolution
+            int simViewportX = PALETTE_WIDTH;
+            int simViewportY = MENU_HEIGHT;
+            int simViewportWidth = SIM_SIZE;   // Keep native resolution
+            int simViewportHeight = SIM_SIZE;  // Keep native resolution
+            
+            m_materialTools.SetViewport(simViewportX, simViewportY, simViewportWidth, simViewportHeight);
+            
+            // Also update the renderer's viewport
+            auto renderer = Services::GetRenderer();
+            if (renderer) {
+                renderer->SetSimulationViewport(simViewportX, simViewportY, simViewportWidth, simViewportHeight);
+            }
+            
+            BGE_LOG_INFO("InteractiveEditor", "Updated simulation viewport to: (" + 
+                         std::to_string(simViewportX) + "," + std::to_string(simViewportY) + 
+                         ") size " + std::to_string(simViewportWidth) + "x" + std::to_string(simViewportHeight));
         });
     }
     
@@ -361,6 +360,8 @@ private:
     MaterialSystem* m_materials = nullptr;
     MaterialTools m_materialTools;
     MaterialEditorUI m_editorUI;
+
+    BGE::EntityID m_testEntityId; // Added for MovementSystem test
 };
 
 int main() {
