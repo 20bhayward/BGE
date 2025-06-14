@@ -3,6 +3,13 @@
 #include "../../ThirdParty/json/json.hpp" // Changed: Added json.hpp include
 #include <fstream>
 #include <iostream> // Changed: Kept iostream for error reporting
+#include "../../Core/Logger.h" // Add BGE logging
+#ifdef _WIN32
+#include <direct.h> // For _getcwd on Windows
+#define getcwd _getcwd
+#else
+#include <unistd.h> // For getcwd on Unix
+#endif
 
 namespace BGE {
 
@@ -10,16 +17,25 @@ MaterialDatabase::MaterialDatabase() = default;
 MaterialDatabase::~MaterialDatabase() = default;
 
 bool MaterialDatabase::LoadFromFile(const std::string& filepath, MaterialSystem& materialSystem) {
+    // Debug: Log current working directory and file path
+    char* cwd = getcwd(nullptr, 0);
+    BGE_LOG_INFO("MaterialDatabase", "Current working directory: " + std::string(cwd ? cwd : "unknown"));
+    BGE_LOG_INFO("MaterialDatabase", "Attempting to load file: " + filepath);
+    if (cwd) free(cwd);
+    
     std::ifstream file(filepath);
     if (!file.is_open()) {
-        std::cerr << "Error: Failed to open material database file: " << filepath << std::endl;
+        BGE_LOG_ERROR("MaterialDatabase", "Failed to open material database file: " + filepath);
         return false;
     }
 
     nlohmann::json jsonData;
     try {
+        BGE_LOG_INFO("MaterialDatabase", "File opened successfully, attempting JSON parse...");
         file >> jsonData;
+        BGE_LOG_INFO("MaterialDatabase", "JSON parsed successfully, found " + std::to_string(jsonData.size()) + " top-level items");
     } catch (const nlohmann::json::parse_error& e) {
+        BGE_LOG_ERROR("MaterialDatabase", "JSON parse error: " + std::string(e.what()));
         std::cerr << "Error: Failed to parse JSON from file: " << filepath << "\n"
                   << "Details: " << e.what() << std::endl;
         return false;
@@ -30,9 +46,13 @@ bool MaterialDatabase::LoadFromFile(const std::string& filepath, MaterialSystem&
         return false;
     }
 
+    BGE_LOG_INFO("MaterialDatabase", "Found materials array with " + std::to_string(jsonData["materials"].size()) + " entries");
+
     for (const auto& materialEntry : jsonData["materials"]) {
         try {
+            BGE_LOG_INFO("MaterialDatabase", "Processing material entry...");
             std::string name = materialEntry.at("name").get<std::string>();
+            BGE_LOG_INFO("MaterialDatabase", "Material name: " + name);
             std::string behaviorStr = materialEntry.at("behavior").get<std::string>();
             float density = materialEntry.at("density").get<float>();
             auto colorArray = materialEntry.at("color").get<std::vector<uint8_t>>();
@@ -138,6 +158,7 @@ bool MaterialDatabase::LoadFromFile(const std::string& filepath, MaterialSystem&
         }
     }
     // LoadBasicMaterials(materialSystem); // We are now loading from JSON, so this might not be needed or could be supplemental
+    BGE_LOG_INFO("MaterialDatabase", "LoadFromFile completed successfully!");
     return true;
 }
 

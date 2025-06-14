@@ -25,6 +25,9 @@ public:
 
     void BeginFrame();
     void EndFrame();
+    
+    // Viewport management
+    void SetSimulationViewport(int x, int y, int width, int height);
 
     // World rendering
     void RenderWorld(class SimulationWorld* world);
@@ -46,6 +49,12 @@ private:
     Window* m_window = nullptr;
     std::unique_ptr<PixelCamera> m_pixelCamera;
     uint32_t m_nextTextureId = 1; // Simple way to generate unique IDs for placeholder
+
+    // Simulation viewport settings
+    int m_simViewportX = 0;
+    int m_simViewportY = 0;
+    int m_simViewportWidth = 512;
+    int m_simViewportHeight = 512;
 
     // Placeholder for actual rendering context or device
     void* m_renderContext = nullptr;

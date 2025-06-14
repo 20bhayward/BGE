@@ -14,6 +14,7 @@
 #include "../../Core/Input/InputManager.h" // For InputManager and Keys
 #include "../../Core/Input/Keyboard.h"    // For Keys::K
 #include "../../Renderer/ParticleSystem.h" // For ParticleSystem type if needed, or just Services
+#include "../../Renderer/Renderer.h" // For SetSimulationViewport method
 #include "../../Simulation/Materials/MaterialDatabase.h" // Added for MaterialDatabase
 // Core/Services.h is already included
 
@@ -57,9 +58,15 @@ public:
         if (m_materials) {
             BGE::MaterialDatabase materialDB;
             if (!materialDB.LoadFromFile("Assets/Data/materials.json", *m_materials)) {
-                BGE_LOG_ERROR("InteractiveEditorApp", "Failed to load materials from Assets/Data/materials.json. Falling back to CreateMaterials().");
-                // Fallback or error handling if JSON loading fails
-                CreateMaterials(); // Keep this as a fallback if JSON loading fails.
+                BGE_LOG_ERROR("InteractiveEditorApp", "Failed to load materials from Assets/Data/materials.json. Trying absolute path...");
+                // Try absolute path as fallback
+                if (materialDB.LoadFromFile("../../../../Assets/Data/materials.json", *m_materials)) {
+                    BGE_LOG_INFO("InteractiveEditorApp", "Successfully loaded materials from absolute path");
+                } else {
+                    BGE_LOG_ERROR("InteractiveEditorApp", "Failed to load materials from both relative and absolute paths. Falling back to CreateMaterials().");
+                    // Fallback or error handling if JSON loading fails
+                    CreateMaterials(); // Keep this as a fallback if JSON loading fails.
+                }
             } else {
                  BGE_LOG_INFO("InteractiveEditorApp", "Successfully loaded materials from Assets/Data/materials.json");
                  // If JSON loading is successful, CreateMaterials() will be emptied or deprecated.
@@ -82,11 +89,28 @@ public:
             return false;
         }
         
-        // Get viewport settings from config
-        auto& config = ConfigManager::Instance();
-        int windowWidth = config.GetInt("window.width", 1280);
-        int windowHeight = config.GetInt("window.height", 720);
-        m_materialTools.SetViewport(0, 0, windowWidth, windowHeight);
+        // Calculate simulation rendering area (exclude UI panels)
+        const int PALETTE_WIDTH = 200;  // Material palette width
+        const int MENU_HEIGHT = 20;     // Main menu bar height
+        const int SIM_SIZE = 512;       // Simulation world is 512x512
+        
+        // Position simulation at native 512x512 resolution in the available space
+        int simViewportX = PALETTE_WIDTH;
+        int simViewportY = MENU_HEIGHT;
+        int simViewportWidth = SIM_SIZE;   // Keep native resolution
+        int simViewportHeight = SIM_SIZE;  // Keep native resolution
+        
+        m_materialTools.SetViewport(simViewportX, simViewportY, simViewportWidth, simViewportHeight);
+        
+        // Also set the renderer's viewport so OpenGL renders to the correct area
+        auto renderer = Services::GetRenderer();
+        if (renderer) {
+            renderer->SetSimulationViewport(simViewportX, simViewportY, simViewportWidth, simViewportHeight);
+        }
+        
+        BGE_LOG_INFO("InteractiveEditor", "Simulation viewport set to: (" + 
+                     std::to_string(simViewportX) + "," + std::to_string(simViewportY) + 
+                     ") size " + std::to_string(simViewportWidth) + "x" + std::to_string(simViewportHeight));
         
         // Initialize UI
         m_editorUI.Initialize(&m_materialTools, m_world.get());
@@ -284,8 +308,29 @@ private:
         eventBus.Subscribe<WindowResizeEvent>([this](const WindowResizeEvent& event) {
             BGE_LOG_INFO("InteractiveEditor", "Window resized to " + std::to_string(event.width) + 
                         "x" + std::to_string(event.height));
-            // Update viewport when window is resized
-            m_materialTools.SetViewport(0, 0, event.width, event.height);
+            
+            // Update viewport when window is resized (exclude UI panels)
+            const int PALETTE_WIDTH = 200;  // Material palette width
+            const int MENU_HEIGHT = 20;     // Main menu bar height
+            const int SIM_SIZE = 512;       // Simulation world is 512x512
+            
+            // Keep simulation at native 512x512 resolution
+            int simViewportX = PALETTE_WIDTH;
+            int simViewportY = MENU_HEIGHT;
+            int simViewportWidth = SIM_SIZE;   // Keep native resolution
+            int simViewportHeight = SIM_SIZE;  // Keep native resolution
+            
+            m_materialTools.SetViewport(simViewportX, simViewportY, simViewportWidth, simViewportHeight);
+            
+            // Also update the renderer's viewport
+            auto renderer = Services::GetRenderer();
+            if (renderer) {
+                renderer->SetSimulationViewport(simViewportX, simViewportY, simViewportWidth, simViewportHeight);
+            }
+            
+            BGE_LOG_INFO("InteractiveEditor", "Updated simulation viewport to: (" + 
+                         std::to_string(simViewportX) + "," + std::to_string(simViewportY) + 
+                         ") size " + std::to_string(simViewportWidth) + "x" + std::to_string(simViewportHeight));
         });
     }
     

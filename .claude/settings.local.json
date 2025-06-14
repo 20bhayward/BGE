@@ -12,7 +12,15 @@
       "Bash(git merge:*)",
       "Bash(git config:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git fetch:*)",
+      "Bash(git stash:*)",
+      "Bash(rg:*)",
+      "Bash(sed:*)",
+      "Bash(git restore:*)",
+      "Bash(mv:*)",
+      "Bash(ln:*)",
+      "Bash(cp:*)"
     ],
     "deny": []
   }

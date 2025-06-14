@@ -3,6 +3,8 @@
 #include "ParticleSystem.h" // Keep for ParticleSystem::Render interface potentially
 #include "../Core/Logger.h"
 #include "../Core/ServiceLocator.h" // For ServiceLocator
+#include "../Simulation/SimulationWorld.h"
+#include <GLFW/glfw3.h>
 
 namespace BGE {
 
@@ -46,22 +48,157 @@ void Renderer::Shutdown() {
 }
 
 void Renderer::BeginFrame() {
-    // Clear screen, setup matrices etc.
-    // For now, this might be handled by existing GL calls if porting from an old system.
-    // Example: glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    BGE_LOG_TRACE("Renderer", "BeginFrame() - Setting up OpenGL state");
+    
+    // Clear screen with a dark gray background
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    BGE_LOG_TRACE("Renderer", "Screen cleared with gray background");
+    
+    // Set OpenGL viewport to simulation rendering area
+    // Note: OpenGL Y=0 is at bottom, but our viewport Y coordinates are from top
+    int windowWidth, windowHeight;
+    if (m_window) {
+        m_window->GetSize(windowWidth, windowHeight);
+        // Convert from top-left origin to bottom-left origin for OpenGL
+        int openglY = windowHeight - m_simViewportY - m_simViewportHeight;
+        glViewport(m_simViewportX, openglY, m_simViewportWidth, m_simViewportHeight);
+        BGE_LOG_TRACE("Renderer", "OpenGL viewport set to (" + std::to_string(m_simViewportX) + "," + 
+                      std::to_string(openglY) + ") size " + std::to_string(m_simViewportWidth) + 
+                      "x" + std::to_string(m_simViewportHeight) + " (converted from window coords (" +
+                      std::to_string(m_simViewportX) + "," + std::to_string(m_simViewportY) + "))");
+    } else {
+        glViewport(m_simViewportX, m_simViewportY, m_simViewportWidth, m_simViewportHeight);
+        BGE_LOG_TRACE("Renderer", "OpenGL viewport set to (" + std::to_string(m_simViewportX) + "," + 
+                      std::to_string(m_simViewportY) + ") size " + std::to_string(m_simViewportWidth) + 
+                      "x" + std::to_string(m_simViewportHeight) + " (no window available for Y conversion)");
+    }
+    
+    // Set up pixel-perfect orthographic projection for material rendering
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    
+    // Use simulation world coordinates (512x512) with Y=0 at bottom (standard OpenGL)
+    glOrtho(0, 512, 0, 512, -1, 1); // Bottom-left origin, standard OpenGL orientation
+    BGE_LOG_TRACE("Renderer", "Projection matrix set to orthographic (0,0)-(512,512)");
+    
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    BGE_LOG_TRACE("Renderer", "Modelview matrix reset to identity");
+    
+    // Enable alpha blending for transparent materials
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    BGE_LOG_TRACE("Renderer", "Alpha blending enabled");
+    
+    // Disable depth testing for 2D rendering
+    glDisable(GL_DEPTH_TEST);
+    BGE_LOG_TRACE("Renderer", "Depth testing disabled");
+    
+    // Make points larger so they're actually visible
+    glPointSize(2.0f);
+    BGE_LOG_TRACE("Renderer", "Point size set to 2.0f");
+    
+    // Check for OpenGL errors
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        BGE_LOG_ERROR("Renderer", "OpenGL error in BeginFrame(): " + std::to_string(error));
+    } else {
+        BGE_LOG_TRACE("Renderer", "BeginFrame() completed successfully - no OpenGL errors");
+    }
 }
 
 void Renderer::EndFrame() {
-    // Swap buffers, present frame.
-    // This is often handled by the Window class or platform-specific code.
+    BGE_LOG_TRACE("Renderer", "EndFrame() - Finalizing frame rendering");
+    
+    // Check for OpenGL errors before finishing
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        BGE_LOG_ERROR("Renderer", "OpenGL error before EndFrame(): " + std::to_string(error));
+    }
+    
+    // Note: Buffer swapping is handled by the Window class
+    BGE_LOG_TRACE("Renderer", "EndFrame() completed (buffer swap handled by Window)");
 }
 
-// Temporary placeholder
+void Renderer::SetSimulationViewport(int x, int y, int width, int height) {
+    m_simViewportX = x;
+    m_simViewportY = y;
+    m_simViewportWidth = width;
+    m_simViewportHeight = height;
+    
+    BGE_LOG_INFO("Renderer", "Simulation viewport updated to: (" + std::to_string(x) + "," + 
+                 std::to_string(y) + ") size " + std::to_string(width) + "x" + std::to_string(height));
+}
+
 void Renderer::RenderWorld(class SimulationWorld* world) {
-    // This function is a placeholder to match Engine.cpp's current calls.
-    // Actual world rendering logic will be more complex.
-    if (world) {
-        // BGE_LOG_TRACE("Renderer", "RenderWorld called (placeholder).");
+    if (!world) return;
+    
+    // Get the pre-rendered pixel data from the simulation world
+    const uint8_t* pixelData = world->GetPixelData();
+    uint32_t width = world->GetWidth();
+    uint32_t height = world->GetHeight();
+    
+    if (!pixelData) {
+        BGE_LOG_ERROR("Renderer", "No pixel data available from SimulationWorld");
+        return;
+    }
+    
+    // Debug: Log world dimensions and check for non-empty pixels
+    static int debugCounter = 0;
+    if (debugCounter++ % 60 == 0) { // Log once per second at 60 FPS
+        int nonEmptyPixels = 0;
+        for (uint32_t i = 0; i < width * height * 4; i += 4) {
+            if (pixelData[i + 3] > 0) { // Check alpha channel
+                nonEmptyPixels++;
+            }
+        }
+        BGE_LOG_INFO("Renderer", "World size: " + std::to_string(width) + "x" + std::to_string(height) + 
+                     ", Non-empty pixels: " + std::to_string(nonEmptyPixels));
+    }
+    
+    BGE_LOG_TRACE("Renderer", "Starting OpenGL point rendering");
+    
+    // For now, use a simple pixel-by-pixel OpenGL approach
+    // This should be optimized to use textures in the future
+    glBegin(GL_POINTS);
+    
+    int pixelsDrawn = 0;
+    for (uint32_t y = 0; y < height; ++y) {
+        for (uint32_t x = 0; x < width; ++x) {
+            // Get RGBA values from pixel buffer
+            uint32_t pixelIndex = (y * width + x) * 4;
+            uint8_t r = pixelData[pixelIndex + 0];
+            uint8_t g = pixelData[pixelIndex + 1];
+            uint8_t b = pixelData[pixelIndex + 2];
+            uint8_t a = pixelData[pixelIndex + 3];
+            
+            // Skip transparent/empty pixels
+            if (a == 0) continue;
+            
+            // Set color and draw pixel
+            glColor4f(r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f);
+            glVertex2i(x, y);
+            pixelsDrawn++;
+            
+            // Debug: Log first few pixels
+            if (pixelsDrawn <= 5) {
+                BGE_LOG_TRACE("Renderer", "Drawing pixel #" + std::to_string(pixelsDrawn) + 
+                             " at (" + std::to_string(x) + "," + std::to_string(y) + ") " +
+                             "RGBA(" + std::to_string(r) + "," + std::to_string(g) + "," + 
+                             std::to_string(b) + "," + std::to_string(a) + ")");
+            }
+        }
+    }
+    
+    glEnd();
+    
+    BGE_LOG_TRACE("Renderer", "OpenGL rendering completed - drew " + std::to_string(pixelsDrawn) + " pixels");
+    
+    // Check for OpenGL errors after rendering
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        BGE_LOG_ERROR("Renderer", "OpenGL error after RenderWorld(): " + std::to_string(error));
     }
 }
 

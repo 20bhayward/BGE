@@ -1,8 +1,18 @@
 #include "AssetManager.h"
 #include <iostream> // For placeholder logging
 
+// Suppress MSVC warnings for STB
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4505) // unreferenced function with internal linkage has been removed
+#endif
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "../ThirdParty/stb/stb_image.h"
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 namespace BGE {
 

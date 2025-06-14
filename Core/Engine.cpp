@@ -274,10 +274,14 @@ void Engine::MainLoop() {
         Update(m_deltaTime);
         
         // Render
+        BGE_LOG_TRACE("Engine", "Main loop - calling Render()");
         Render();
+        BGE_LOG_TRACE("Engine", "Main loop - Render() completed");
         
         // Present
+        BGE_LOG_TRACE("Engine", "Main loop - calling SwapBuffers()");
         m_window->SwapBuffers();
+        BGE_LOG_TRACE("Engine", "Main loop - SwapBuffers() completed");
         
         ++m_frameCount;
         
@@ -339,34 +343,60 @@ void Engine::Render() {
     auto world = serviceLocator.GetService<SimulationWorld>();
     auto ui = serviceLocator.GetService<UISystem>();
     
-    if (renderer) {
-        renderer->BeginFrame();
-        
-        // Render simulation world
-        if (world) {
-            renderer->RenderWorld(world.get());
-        }
-        
-        // Begin UI frame
-        if (ui) {
-            ui->BeginFrame();
-        }
-        
-        // Render application (including UI)
-        if (m_application) {
-            m_application->Render();
-        }
-
-        // Render particles (via Renderer facade)
-        renderer->RenderParticles();
-        
-        // End UI frame and render UI
-        if (ui) {
-            ui->EndFrame();
-        }
-        
-        renderer->EndFrame();
+    static int renderCallCounter = 0;
+    renderCallCounter++;
+    
+    if (!renderer) {
+        BGE_LOG_ERROR("Engine", "No renderer service available for rendering!");
+        return;
     }
+    
+    BGE_LOG_TRACE("Engine", "Render() call #" + std::to_string(renderCallCounter) + " - Starting BeginFrame()");
+    renderer->BeginFrame();
+    BGE_LOG_TRACE("Engine", "BeginFrame() completed");
+    
+    // Render simulation world
+    if (world) {
+        BGE_LOG_TRACE("Engine", "Calling RenderWorld() with world data");
+        renderer->RenderWorld(world.get());
+        BGE_LOG_TRACE("Engine", "RenderWorld() completed");
+    } else {
+        BGE_LOG_ERROR("Engine", "No simulation world available for rendering!");
+    }
+    
+    // Begin UI frame
+    if (ui) {
+        BGE_LOG_TRACE("Engine", "Starting UI BeginFrame()");
+        ui->BeginFrame();
+        BGE_LOG_TRACE("Engine", "UI BeginFrame() completed");
+    } else {
+        BGE_LOG_ERROR("Engine", "No UI system available!");
+    }
+    
+    // Render application (including UI)
+    if (m_application) {
+        BGE_LOG_TRACE("Engine", "Calling application Render()");
+        m_application->Render();
+        BGE_LOG_TRACE("Engine", "Application Render() completed");
+    } else {
+        BGE_LOG_ERROR("Engine", "No application available for rendering!");
+    }
+
+    // Render particles (via Renderer facade)
+    BGE_LOG_TRACE("Engine", "Calling RenderParticles()");
+    renderer->RenderParticles();
+    BGE_LOG_TRACE("Engine", "RenderParticles() completed");
+    
+    // End UI frame and render UI
+    if (ui) {
+        BGE_LOG_TRACE("Engine", "Starting UI EndFrame()");
+        ui->EndFrame();
+        BGE_LOG_TRACE("Engine", "UI EndFrame() completed");
+    }
+    
+    BGE_LOG_TRACE("Engine", "Starting renderer EndFrame()");
+    renderer->EndFrame();
+    BGE_LOG_TRACE("Engine", "Render() call #" + std::to_string(renderCallCounter) + " completed");
 }
 
 void Engine::RegisterShutdownCallback(ShutdownCallback callback) {
