@@ -40,6 +40,10 @@ void MaterialEditorUI::Render() {
         RenderStatusPanel();
     }
     
+    if (m_showMaterialInfo) {
+        RenderMaterialInfo();
+    }
+    
     if (m_showDemoWindow) {
         ImGui::ShowDemoWindow(&m_showDemoWindow);
     }
@@ -80,6 +84,7 @@ void MaterialEditorUI::RenderMainMenuBar() {
             ImGui::MenuItem("Simulation Controls", nullptr, &m_showSimulationControls);
             ImGui::MenuItem("Brush Settings", nullptr, &m_showBrushSettings);
             ImGui::MenuItem("Status Panel", nullptr, &m_showStatusPanel);
+            ImGui::MenuItem("Material Info", nullptr, &m_showMaterialInfo);
             ImGui::Separator();
             ImGui::MenuItem("ImGui Demo", nullptr, &m_showDemoWindow);
             ImGui::EndMenu();
@@ -95,6 +100,11 @@ void MaterialEditorUI::RenderMainMenuBar() {
             }
             if (ImGui::MenuItem("Sample", "I", currentMode == ToolMode::Sample)) {
                 m_materialTools->SetToolMode(ToolMode::Sample);
+            }
+            ImGui::Separator();
+            bool inspectorEnabled = m_materialTools->IsInspectorEnabled();
+            if (ImGui::MenuItem("Toggle Inspector", "Q", inspectorEnabled)) {
+                m_materialTools->SetInspectorEnabled(!inspectorEnabled);
             }
             ImGui::EndMenu();
         }
@@ -266,9 +276,85 @@ void MaterialEditorUI::RenderStatusPanel() {
         }
         
         // Tool info
-        const char* toolNames[] = { "Paint", "Erase", "Sample" };
+        const char* toolNames[] = { "Paint", "Erase", "Sample", "Info" };
         UI::StatusText("Tool", toolNames[static_cast<int>(m_materialTools->GetToolMode())]);
         UI::StatusText("Brush Size", std::to_string(m_materialTools->GetBrush().GetSize()).c_str());
+    }
+    ImGui::End();
+}
+
+void MaterialEditorUI::RenderMaterialInfo() {
+    ImGui::SetNextWindowPos(ImVec2(m_paletteWidth + 10, 20), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(300, 400), ImGuiCond_FirstUseEver);
+    
+    if (ImGui::Begin("Material Inspector", &m_showMaterialInfo)) {
+        // Inspector toggle
+        bool inspectorEnabled = m_materialTools->IsInspectorEnabled();
+        if (ImGui::Checkbox("Enable Inspector (Q)", &inspectorEnabled)) {
+            m_materialTools->SetInspectorEnabled(inspectorEnabled);
+        }
+        
+        if (!inspectorEnabled) {
+            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Inspector disabled. Enable to see material info.");
+            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Press Q or check the box above to enable.");
+        } else {
+            const auto& materialInfo = m_materialTools->GetInspectedMaterial();
+            
+            if (!materialInfo.hasData) {
+                ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Hover over materials to inspect");
+                ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Works with any tool (Paint/Erase/Sample)");
+            } else {
+                // Material name and description
+                ImGui::Text("Material: %s", materialInfo.name.c_str());
+                ImGui::Separator();
+                
+                if (!materialInfo.description.empty()) {
+                    ImGui::TextWrapped("%s", materialInfo.description.c_str());
+                    ImGui::Separator();
+                }
+                
+                // Position
+                ImGui::Text("Position: (%d, %d)", materialInfo.posX, materialInfo.posY);
+                
+                // Basic properties
+                ImGui::Text("Temperature: %.1f°C", materialInfo.temperature);
+                ImGui::Text("Density: %.2f", materialInfo.density);
+                
+                if (materialInfo.viscosity > 0.0f) {
+                    ImGui::Text("Viscosity: %.2f", materialInfo.viscosity);
+                }
+                
+                // Material ID for debugging
+                ImGui::Text("ID: %d", static_cast<int>(materialInfo.materialID));
+                
+                // Reactions
+                if (!materialInfo.reactions.empty()) {
+                    ImGui::Separator();
+                    ImGui::Text("Reactions:");
+                    ImGui::Indent();
+                    
+                    for (const auto& reaction : materialInfo.reactions) {
+                        ImGui::BulletText("%s", reaction.c_str());
+                    }
+                    
+                    ImGui::Unindent();
+                }
+                
+                // Visual feedback for inspector
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "Inspector Active - Move cursor to update");
+                
+                ToolMode currentMode = m_materialTools->GetToolMode();
+                const char* currentTool = "";
+                switch(currentMode) {
+                    case ToolMode::Paint: currentTool = "Paint (B)"; break;
+                    case ToolMode::Erase: currentTool = "Erase (E)"; break;
+                    case ToolMode::Sample: currentTool = "Sample (I)"; break;
+                    case ToolMode::Info: currentTool = "Info Only (Q)"; break;
+                }
+                ImGui::Text("Current Tool: %s", currentTool);
+            }
+        }
     }
     ImGui::End();
 }

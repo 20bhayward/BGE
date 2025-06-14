@@ -24,12 +24,14 @@ public:
     void ShowSimulationControls(bool show) { m_showSimulationControls = show; }
     void ShowBrushSettings(bool show) { m_showBrushSettings = show; }
     void ShowStatusPanel(bool show) { m_showStatusPanel = show; }
+    void ShowMaterialInfo(bool show) { m_showMaterialInfo = show; }
 
 private:
     void RenderMaterialPalette();
     void RenderSimulationControls();
     void RenderBrushSettings();
     void RenderStatusPanel();
+    void RenderMaterialInfo();
     void RenderMainMenuBar();
     
     MaterialTools* m_materialTools = nullptr;
@@ -41,6 +43,7 @@ private:
     bool m_showSimulationControls = true;
     bool m_showBrushSettings = true;
     bool m_showStatusPanel = true;
+    bool m_showMaterialInfo = true;
     bool m_showDemoWindow = false;
     
     // Layout

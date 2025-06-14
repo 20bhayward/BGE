@@ -77,6 +77,11 @@ public:
     
     size_t GetComponentCount() const { return m_components.size(); }
     
+    // Check if entity has component by type index (for queries)
+    bool HasComponentType(const std::type_index& type) const {
+        return m_components.find(type) != m_components.end();
+    }
+    
 private:
     EntityID m_id;
     std::string m_name;
@@ -108,6 +113,11 @@ public:
     
     void Clear();
     size_t GetEntityCount() const { return m_entities.size(); }
+    
+    // Get all entities (for queries)
+    const std::unordered_map<EntityID, std::unique_ptr<Entity>>& GetAllEntities() const {
+        return m_entities;
+    }
     
 private:
     EntityManager() = default;

@@ -75,4 +75,20 @@ Matrix4 PixelCamera::GetViewMatrix() const {
     return view;
 }
 
+Vector2 PixelCamera::ScreenToWorld(float screenX, float screenY) const {
+    // Calculate the effective screen dimensions based on zoom
+    float effectiveScreenWidth = m_screenWidth / m_zoom;
+    float effectiveScreenHeight = m_screenHeight / m_zoom;
+    
+    // Convert screen coordinates (0,0 at top-left) to normalized device coordinates (-1 to 1)
+    float ndcX = (2.0f * screenX / m_screenWidth) - 1.0f;
+    float ndcY = 1.0f - (2.0f * screenY / m_screenHeight); // Flip Y for OpenGL coordinates
+    
+    // Convert from NDC to world coordinates
+    float worldX = m_position.x + (ndcX * effectiveScreenWidth * 0.5f);
+    float worldY = m_position.y + (ndcY * effectiveScreenHeight * 0.5f);
+    
+    return Vector2{worldX, worldY};
+}
+
 } // namespace BGE

@@ -4,7 +4,7 @@
 #include <string>
 #include <functional>
 
-#include "SystemManager.h" // Required for std::unique_ptr<SystemManager>
+#include "Systems/SystemManager.h"
 
 namespace BGE {
 
@@ -56,8 +56,6 @@ private:
     std::unique_ptr<Window> m_window;
     
     std::vector<ShutdownCallback> m_shutdownCallbacks;
-
-    std::unique_ptr<SystemManager> m_systemManager;
 };
 
 } // namespace BGE

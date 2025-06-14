@@ -92,18 +92,23 @@ public:
         // Calculate simulation rendering area (exclude UI panels)
         const int PALETTE_WIDTH = 200;  // Material palette width
         const int MENU_HEIGHT = 20;     // Main menu bar height
-        const int SIM_SIZE = 512;       // Simulation world is 512x512
         
-        // Position simulation at native 512x512 resolution in the available space
+        // Get window size to calculate simulation viewport
+        auto renderer = Services::GetRenderer();
+        int windowWidth = 1280, windowHeight = 720; // Default fallback
+        if (renderer && renderer->GetWindow()) {
+            renderer->GetWindow()->GetSize(windowWidth, windowHeight);
+        }
+        
+        // Make simulation fill most of the available space (excluding UI panels)
         int simViewportX = PALETTE_WIDTH;
         int simViewportY = MENU_HEIGHT;
-        int simViewportWidth = SIM_SIZE;   // Keep native resolution
-        int simViewportHeight = SIM_SIZE;  // Keep native resolution
+        int simViewportWidth = windowWidth - PALETTE_WIDTH - 20;  // Leave some margin
+        int simViewportHeight = windowHeight - MENU_HEIGHT - 20;   // Leave some margin
         
         m_materialTools.SetViewport(simViewportX, simViewportY, simViewportWidth, simViewportHeight);
         
         // Also set the renderer's viewport so OpenGL renders to the correct area
-        auto renderer = Services::GetRenderer();
         if (renderer) {
             renderer->SetSimulationViewport(simViewportX, simViewportY, simViewportWidth, simViewportHeight);
         }
@@ -312,13 +317,12 @@ private:
             // Update viewport when window is resized (exclude UI panels)
             const int PALETTE_WIDTH = 200;  // Material palette width
             const int MENU_HEIGHT = 20;     // Main menu bar height
-            const int SIM_SIZE = 512;       // Simulation world is 512x512
             
-            // Keep simulation at native 512x512 resolution
+            // Make simulation fill most of the available space (excluding UI panels)
             int simViewportX = PALETTE_WIDTH;
             int simViewportY = MENU_HEIGHT;
-            int simViewportWidth = SIM_SIZE;   // Keep native resolution
-            int simViewportHeight = SIM_SIZE;  // Keep native resolution
+            int simViewportWidth = event.width - PALETTE_WIDTH - 20;  // Leave some margin
+            int simViewportHeight = event.height - MENU_HEIGHT - 20;   // Leave some margin
             
             m_materialTools.SetViewport(simViewportX, simViewportY, simViewportWidth, simViewportHeight);
             

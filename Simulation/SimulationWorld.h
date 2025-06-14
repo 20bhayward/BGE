@@ -101,7 +101,8 @@ private:
     bool TryMove(int fromX, int fromY, int toX, int toY);
     bool CanDisplace(MaterialID mover, MaterialID target) const;
     void SwapCells(int x1, int y1, int x2, int y2);
-    uint32_t MaterialToColor(MaterialID material, float temperature) const;
+    uint32_t MaterialToColor(MaterialID material, float temperature, int x, int y) const;
+    uint32_t ApplyVisualPattern(uint32_t baseColor, const VisualProperties& props, int x, int y) const;
     
     // Threading support
     void UpdateChunkParallel(int chunkIndex, float deltaTime);
