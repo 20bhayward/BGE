@@ -44,6 +44,7 @@ public:
     void DeleteTexture(uint32_t textureId);
 
     PixelCamera* GetPixelCamera() const { return m_pixelCamera.get(); }
+    Window* GetWindow() const { return m_window; }
 
 private:
     Window* m_window = nullptr;

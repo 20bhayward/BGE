@@ -95,9 +95,9 @@ void Renderer::BeginFrame() {
     glDisable(GL_DEPTH_TEST);
     BGE_LOG_TRACE("Renderer", "Depth testing disabled");
     
-    // Make points larger so they're actually visible
-    glPointSize(2.0f);
-    BGE_LOG_TRACE("Renderer", "Point size set to 2.0f");
+    // Disable point size since we'll use quads for tight pixel coverage
+    // glPointSize(2.0f);
+    BGE_LOG_TRACE("Renderer", "Prepared for quad-based pixel rendering");
     
     // Check for OpenGL errors
     GLenum error = glGetError();
@@ -157,11 +157,10 @@ void Renderer::RenderWorld(class SimulationWorld* world) {
                      ", Non-empty pixels: " + std::to_string(nonEmptyPixels));
     }
     
-    BGE_LOG_TRACE("Renderer", "Starting OpenGL point rendering");
+    BGE_LOG_TRACE("Renderer", "Starting OpenGL quad rendering for tight pixels");
     
-    // For now, use a simple pixel-by-pixel OpenGL approach
-    // This should be optimized to use textures in the future
-    glBegin(GL_POINTS);
+    // Use GL_QUADS to ensure tight pixel coverage without gaps
+    glBegin(GL_QUADS);
     
     int pixelsDrawn = 0;
     for (uint32_t y = 0; y < height; ++y) {
@@ -176,9 +175,18 @@ void Renderer::RenderWorld(class SimulationWorld* world) {
             // Skip transparent/empty pixels
             if (a == 0) continue;
             
-            // Set color and draw pixel
+            // Set color for this pixel
             glColor4f(r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f);
-            glVertex2i(x, y);
+            
+            // Draw a tight 1x1 pixel quad (no gaps)
+            float x_f = static_cast<float>(x);
+            float y_f = static_cast<float>(y);
+            
+            glVertex2f(x_f, y_f);               // Bottom-left
+            glVertex2f(x_f + 1.0f, y_f);       // Bottom-right
+            glVertex2f(x_f + 1.0f, y_f + 1.0f); // Top-right
+            glVertex2f(x_f, y_f + 1.0f);       // Top-left
+            
             pixelsDrawn++;
             
             // Debug: Log first few pixels

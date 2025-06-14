@@ -22,6 +22,9 @@ public:
     // Optional: If the projection needs to be configured (e.g., based on screen size)
     void SetProjection(float screenWidth, float screenHeight);
 
+    // Convert screen coordinates to world coordinates
+    Vector2 ScreenToWorld(float screenX, float screenY) const;
+
 private:
     Vector2 m_position;
     int m_zoom;

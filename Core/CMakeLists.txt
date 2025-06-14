@@ -18,9 +18,19 @@ add_library(BGECore STATIC
     Services.h
     Services.cpp
     Components.h
-    SystemManager.h
-    SystemManager.cpp
-    ISystem.h
+    Components.cpp
+    
+    # Enhanced ECS System
+    Systems/ISystem.h
+    Systems/SystemManager.h
+    Systems/SystemManager.cpp
+    Systems/TransformSystem.h
+    Systems/TransformSystem.cpp
+    
+    # ECS Components and Queries
+    ECS/Archetype.h
+    ECS/EntityQuery.h
+    ECS/EntityQuery.cpp
     
     # Math
     Math/Vector2.h

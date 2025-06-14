@@ -3,20 +3,53 @@
 #include "Entity.h"
 #include "Math/Vector2.h"
 #include "Math/Vector3.h"
+#include "Math/Matrix4.h"
 #include <string>
 #include <algorithm>
+#include <vector>
+#include <sstream>
+#include <unordered_map>
 
 namespace BGE {
 
-class TransformComponent : public Component {
+// Simple key-value serialization (we'll enhance this later with proper JSON)
+using SerializationData = std::unordered_map<std::string, std::string>;
+
+// Base serializable component interface
+class ISerializableComponent {
+public:
+    virtual ~ISerializableComponent() = default;
+    virtual SerializationData Serialize() const = 0;
+    virtual void Deserialize(const SerializationData& data) = 0;
+    virtual std::string GetTypeName() const = 0;
+};
+
+class TransformComponent : public Component, public ISerializableComponent {
 public:
     Vector3 position{0.0f, 0.0f, 0.0f};
-    Vector3 rotation{0.0f, 0.0f, 0.0f};
+    float rotation = 0.0f;  // 2D rotation in radians
     Vector3 scale{1.0f, 1.0f, 1.0f};
     
+    // Hierarchy support
+    EntityID parent = INVALID_ENTITY_ID;
+    std::vector<EntityID> children;
+    
+    // Cached world transform
+    Matrix4 worldTransform = Matrix4::CreateIdentity();
+    
     TransformComponent() = default;
-    TransformComponent(const Vector3& pos, const Vector3& rot = {0, 0, 0}, const Vector3& scl = {1, 1, 1})
+    TransformComponent(const Vector3& pos, float rot = 0.0f, const Vector3& scl = {1, 1, 1})
         : position(pos), rotation(rot), scale(scl) {}
+    
+    // Serialization
+    SerializationData Serialize() const override;
+    void Deserialize(const SerializationData& data) override;
+    std::string GetTypeName() const override { return "TransformComponent"; }
+    
+    // Hierarchy helpers
+    void AddChild(EntityID child);
+    void RemoveChild(EntityID child);
+    void SetParent(EntityID parent);
 };
 
 class NameComponent : public Component {

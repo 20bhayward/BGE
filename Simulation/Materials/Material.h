@@ -25,6 +25,57 @@ enum class MaterialBehavior : uint8_t {
     Fire         // Special behavior for combustion
 };
 
+enum class VisualPattern : uint8_t {
+    Solid,          // Standard solid color
+    Speck,          // Small random colored specks
+    Wavy,           // Wavy lines pattern
+    Line,           // Straight line pattern
+    Border,         // Different color on border
+    Gradient,       // Vertical/horizontal gradient
+    Checkerboard,   // Checkerboard pattern
+    Dots,           // Regular dot pattern
+    Stripes,        // Diagonal stripes
+    Noise,          // Random noise texture
+    Marble,         // Marble-like veins
+    Crystal,        // Crystal facet pattern
+    Honeycomb,      // Hexagonal honeycomb
+    Spiral,         // Spiral pattern
+    Ripple,         // Concentric ripples
+    Flame,          // Flame-like pattern
+    Wood,           // Wood grain pattern
+    Metal,          // Metallic brushed pattern
+    Fabric,         // Fabric weave pattern
+    Scale,          // Dragon scale pattern
+    Bubble,         // Bubble texture
+    Crack,          // Cracked surface
+    Flow,           // Flowing liquid pattern
+    Spark,          // Sparkling particles
+    Glow,           // Glowing edges
+    Frost,          // Frost crystal pattern
+    Sand,           // Sand grain texture
+    Rock,           // Rocky surface
+    Plasma,         // Plasma energy pattern
+    Lightning,      // Lightning bolts
+    Smoke,          // Smoke wisps
+    Steam,          // Steam condensation
+    Oil,            // Oil slick rainbow
+    Blood,          // Blood droplet pattern
+    Acid,           // Acid bubbling
+    Ice,            // Ice crystal formation
+    Lava,           // Lava flow pattern
+    Gas,            // Gas particle movement
+    Liquid,         // Liquid surface tension
+    Powder          // Powder grain pattern
+};
+
+struct VisualProperties {
+    VisualPattern pattern = VisualPattern::Solid;
+    uint32_t secondaryColor = 0xFF000000; // For patterns requiring second color
+    float patternScale = 1.0f;            // Scale of pattern elements
+    float patternIntensity = 0.5f;        // How prominent the pattern is
+    float animationSpeed = 0.0f;          // Speed of pattern animation
+};
+
 struct ThermalProperties {
     float meltingPoint = 1000.0f;    // Temperature to change to liquid
     float boilingPoint = 2000.0f;    // Temperature to change to gas
@@ -71,6 +122,7 @@ public:
     const PhysicalProperties& GetPhysicalProps() const { return m_physicalProps; }
     const ThermalProperties& GetThermalProps() const { return m_thermalProps; }
     const OpticalProperties& GetOpticalProps() const { return m_opticalProps; }
+    const VisualProperties& GetVisualProps() const { return m_visualProps; }
     
     // Reactions
     void AddReaction(const MaterialReaction& reaction);
@@ -82,6 +134,11 @@ public:
     Material& SetDensity(float density) { m_physicalProps.density = density; return *this; }
     Material& SetMeltingPoint(float temp) { m_thermalProps.meltingPoint = temp; return *this; }
     Material& SetEmission(float emission) { m_opticalProps.emission = emission; return *this; }
+    Material& SetVisualPattern(VisualPattern pattern) { m_visualProps.pattern = pattern; return *this; }
+    Material& SetSecondaryColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) { 
+        m_visualProps.secondaryColor = (a << 24) | (r << 16) | (g << 8) | b; 
+        return *this; 
+    }
     
     // Hotkey
     int GetHotKey() const { return m_hotkey; }
@@ -101,6 +158,7 @@ private:
     PhysicalProperties m_physicalProps;
     ThermalProperties m_thermalProps;
     OpticalProperties m_opticalProps;
+    VisualProperties m_visualProps;
     
     std::vector<MaterialReaction> m_reactions;
 };

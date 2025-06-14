@@ -53,52 +53,58 @@ struct Matrix4 {
     }
     
     // Static creation functions
+    static Matrix4 CreateIdentity() {
+        Matrix4 mat;
+        mat.Identity();
+        return mat;
+    }
+    
     static Matrix4 Translation(const Vector3& translation) {
-        Matrix4 result;
-        result.m[12] = translation.x;
-        result.m[13] = translation.y;
-        result.m[14] = translation.z;
-        return result;
+        Matrix4 mat;
+        mat.m[12] = translation.x;
+        mat.m[13] = translation.y;
+        mat.m[14] = translation.z;
+        return mat;
     }
     
     static Matrix4 Scale(const Vector3& scale) {
-        Matrix4 result;
-        result.m[0] = scale.x;
-        result.m[5] = scale.y;
-        result.m[10] = scale.z;
-        return result;
+        Matrix4 mat;
+        mat.m[0] = scale.x;
+        mat.m[5] = scale.y;
+        mat.m[10] = scale.z;
+        return mat;
     }
     
     static Matrix4 RotationZ(float radians) {
-        Matrix4 result;
+        Matrix4 mat;
         float c = std::cos(radians);
         float s = std::sin(radians);
-        result.m[0] = c;  result.m[4] = -s;
-        result.m[1] = s;  result.m[5] = c;
-        return result;
+        mat.m[0] = c;  mat.m[4] = -s;
+        mat.m[1] = s;  mat.m[5] = c;
+        return mat;
     }
     
     static Matrix4 Perspective(float fovy, float aspect, float nearPlane, float farPlane) {
-        Matrix4 result;
+        Matrix4 mat;
         float tanHalfFovy = std::tan(fovy * 0.5f);
-        result.m[0] = 1.0f / (aspect * tanHalfFovy);
-        result.m[5] = 1.0f / tanHalfFovy;
-        result.m[10] = -(farPlane + nearPlane) / (farPlane - nearPlane);
-        result.m[11] = -1.0f;
-        result.m[14] = -(2.0f * farPlane * nearPlane) / (farPlane - nearPlane);
-        result.m[15] = 0.0f;
-        return result;
+        mat.m[0] = 1.0f / (aspect * tanHalfFovy);
+        mat.m[5] = 1.0f / tanHalfFovy;
+        mat.m[10] = -(farPlane + nearPlane) / (farPlane - nearPlane);
+        mat.m[11] = -1.0f;
+        mat.m[14] = -(2.0f * farPlane * nearPlane) / (farPlane - nearPlane);
+        mat.m[15] = 0.0f;
+        return mat;
     }
     
     static Matrix4 Orthographic(float left, float right, float bottom, float top, float nearPlane, float farPlane) {
-        Matrix4 result;
-        result.m[0] = 2.0f / (right - left);
-        result.m[5] = 2.0f / (top - bottom);
-        result.m[10] = -2.0f / (farPlane - nearPlane);
-        result.m[12] = -(right + left) / (right - left);
-        result.m[13] = -(top + bottom) / (top - bottom);
-        result.m[14] = -(farPlane + nearPlane) / (farPlane - nearPlane);
-        return result;
+        Matrix4 mat;
+        mat.m[0] = 2.0f / (right - left);
+        mat.m[5] = 2.0f / (top - bottom);
+        mat.m[10] = -2.0f / (farPlane - nearPlane);
+        mat.m[12] = -(right + left) / (right - left);
+        mat.m[13] = -(top + bottom) / (top - bottom);
+        mat.m[14] = -(farPlane + nearPlane) / (farPlane - nearPlane);
+        return mat;
     }
 };
 

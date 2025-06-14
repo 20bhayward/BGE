@@ -29,6 +29,59 @@ public:
     void ProcessLiquid(int x, int y);
     void ProcessGas(int x, int y);
     void ProcessFire(int x, int y);
+    
+    // Fire type specific behaviors
+    void ProcessNormalFire(int x, int y, uint8_t fireLife);
+    
+    // Advanced liquid behaviors
+    void ProcessWater(int x, int y, float viscosity, float density);
+    void ProcessOil(int x, int y, float viscosity, float density);
+    void ProcessPoisonWater(int x, int y, float viscosity, float density);
+    void ProcessGenericLiquid(int x, int y, float viscosity, float density);
+    void ProcessLiquidNitrogen(int x, int y, float viscosity, float density);
+    void ProcessLava(int x, int y, float viscosity, float density);
+    void ProcessAcid(int x, int y, float viscosity, float density);
+    void ProcessBlood(int x, int y, float viscosity, float density);
+    void ProcessQuicksilver(int x, int y, float viscosity, float density);
+    
+    // Advanced gas behaviors
+    void ProcessNitrogen(int x, int y);
+    void ProcessSteam(int x, int y);
+    void ProcessSmoke(int x, int y);
+    void ProcessToxicGas(int x, int y);
+    void ProcessCarbonDioxide(int x, int y);
+    void ProcessOxygen(int x, int y);
+    void ProcessHydrogen(int x, int y);
+    void ProcessMethane(int x, int y);
+    void ProcessChlorine(int x, int y);
+    void ProcessAmmonia(int x, int y);
+    void ProcessHelium(int x, int y);
+    void ProcessGenericGas(int x, int y, float density);
+    
+    // New gas processors
+    void ProcessArgon(int x, int y);
+    void ProcessNeon(int x, int y);
+    void ProcessPropane(int x, int y);
+    void ProcessAcetylene(int x, int y);
+    void ProcessSulfurDioxide(int x, int y);
+    void ProcessCarbonMonoxide(int x, int y);
+    void ProcessNitrousOxide(int x, int y);
+    void ProcessOzone(int x, int y);
+    void ProcessFluorine(int x, int y);
+    void ProcessXenon(int x, int y);
+    
+    // Gas movement helpers
+    bool TryTurbulentMovement(int x, int y, float upwardBias, float horizontalTurbulence, int attempts = 3);
+    
+    // Powder physics helpers
+    bool TryPowderMove(int fromX, int fromY, int toX, int toY, float density);
+    bool ShouldPowderSlide(int x, int y, float angleOfRepose);
+    int GetSlideDirection(int x, int y);
+    bool IsPowderStable(int x, int y);
+    float GetPowderAngleOfRepose(const std::string& materialName);
+    float GetPowderCohesion(const std::string& materialName);
+    
+    // State transitions removed - using direct reactions instead
     void UpdatePowder(int x, int y);
     void UpdateLiquid(int x, int y);
     void UpdateGas(int x, int y);
@@ -83,9 +136,7 @@ private:
     float GetDensity(MaterialID material) const;
     bool ShouldFloat(MaterialID material, MaterialID surroundingMaterial) const;
     
-    // Temperature effects
-    void DiffuseHeat(int x, int y, float deltaTime);
-    void ApplyThermalEffects(int x, int y, float temperature);
+    // Temperature system removed
     
     // Random number generation for probabilistic behaviors
     float Random01();

@@ -8,9 +8,8 @@
 #include "ConfigManager.h"
 #include "Entity.h"
 #include "Input/InputManager.h"
-#include "SystemManager.h" // Added for SystemManager
-#include "../Simulation/Systems/MovementSystem.h" // Added for MovementSystem
-#include "../AI/AISystem.h" // Added for AISystem
+#include "Systems/SystemManager.h"
+#include "Systems/TransformSystem.h"
 #include "../Simulation/SimulationWorld.h"
 #include "../Renderer/Renderer.h"
 #include "../Renderer/ParticleSystem.h" // Added for ParticleSystem service
@@ -96,17 +95,12 @@ bool Engine::InitializeServices() {
         // Register core services
         RegisterCoreServices();
 
-        // Instantiate the SystemManager
-        m_systemManager = std::make_unique<SystemManager>();
-        BGE_LOG_INFO("Engine", "SystemManager created.");
-
-        // Create an instance of MovementSystem and register it
-        m_systemManager->RegisterSystem(new MovementSystem()); // LEAK PRONE if not managed
-        BGE_LOG_INFO("Engine", "MovementSystem registered.");
-
-        // Create an instance of AISystem and register it
-        m_systemManager->RegisterSystem(new AISystem());
-        BGE_LOG_INFO("Engine", "AISystem registered.");
+        // Register SystemManager as a service
+        auto& systemManager = SystemManager::Instance();
+        
+        // Register core systems
+        systemManager.RegisterSystem<TransformSystem>(std::make_shared<TransformSystem>());
+        BGE_LOG_INFO("Engine", "TransformSystem registered.");
         
         return true;
     }
@@ -206,6 +200,9 @@ void Engine::Shutdown() {
         ui->Shutdown();
     }
     serviceLocator.Clear();
+    
+    // Clear systems
+    SystemManager::Instance().Clear();
     
     // Clear entity manager
     EntityManager::Instance().Clear();
@@ -321,10 +318,7 @@ void Engine::Update(float deltaTime) {
     }
 
     // Update all registered systems
-    if (m_systemManager)
-    {
-        m_systemManager->UpdateAll(deltaTime);
-    }
+    SystemManager::Instance().UpdateSystems(deltaTime);
 
     // Update Particle System
     if (auto ps = serviceLocator.GetService<ParticleSystem>()) {

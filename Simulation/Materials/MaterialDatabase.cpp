@@ -88,7 +88,82 @@ bool MaterialDatabase::LoadFromFile(const std::string& filepath, MaterialSystem&
                 builder.SetHotKey(hotkey); // Use the new SetHotKey method
             }
 
-            // builder.Build(); // Build() is not part of MaterialBuilder in MaterialSystem.h; settings are applied directly.
+            // Parse visual pattern if present
+            if (materialEntry.contains("visualPattern") && materialEntry["visualPattern"].is_object()) {
+                auto visualPattern = materialEntry["visualPattern"];
+                
+                // Parse pattern type
+                if (visualPattern.contains("pattern")) {
+                    std::string patternStr = visualPattern["pattern"].get<std::string>();
+                    VisualPattern pattern = VisualPattern::Solid;
+                    
+                    if (patternStr == "Speck") pattern = VisualPattern::Speck;
+                    else if (patternStr == "Wavy") pattern = VisualPattern::Wavy;
+                    else if (patternStr == "Line") pattern = VisualPattern::Line;
+                    else if (patternStr == "Border") pattern = VisualPattern::Border;
+                    else if (patternStr == "Gradient") pattern = VisualPattern::Gradient;
+                    else if (patternStr == "Checkerboard") pattern = VisualPattern::Checkerboard;
+                    else if (patternStr == "Dots") pattern = VisualPattern::Dots;
+                    else if (patternStr == "Stripes") pattern = VisualPattern::Stripes;
+                    else if (patternStr == "Noise") pattern = VisualPattern::Noise;
+                    else if (patternStr == "Marble") pattern = VisualPattern::Marble;
+                    else if (patternStr == "Crystal") pattern = VisualPattern::Crystal;
+                    else if (patternStr == "Honeycomb") pattern = VisualPattern::Honeycomb;
+                    else if (patternStr == "Spiral") pattern = VisualPattern::Spiral;
+                    else if (patternStr == "Ripple") pattern = VisualPattern::Ripple;
+                    else if (patternStr == "Flame") pattern = VisualPattern::Flame;
+                    else if (patternStr == "Wood") pattern = VisualPattern::Wood;
+                    else if (patternStr == "Metal") pattern = VisualPattern::Metal;
+                    else if (patternStr == "Fabric") pattern = VisualPattern::Fabric;
+                    else if (patternStr == "Scale") pattern = VisualPattern::Scale;
+                    else if (patternStr == "Bubble") pattern = VisualPattern::Bubble;
+                    else if (patternStr == "Crack") pattern = VisualPattern::Crack;
+                    else if (patternStr == "Flow") pattern = VisualPattern::Flow;
+                    else if (patternStr == "Spark") pattern = VisualPattern::Spark;
+                    else if (patternStr == "Glow") pattern = VisualPattern::Glow;
+                    else if (patternStr == "Frost") pattern = VisualPattern::Frost;
+                    else if (patternStr == "Sand") pattern = VisualPattern::Sand;
+                    else if (patternStr == "Rock") pattern = VisualPattern::Rock;
+                    else if (patternStr == "Plasma") pattern = VisualPattern::Plasma;
+                    else if (patternStr == "Lightning") pattern = VisualPattern::Lightning;
+                    else if (patternStr == "Smoke") pattern = VisualPattern::Smoke;
+                    else if (patternStr == "Steam") pattern = VisualPattern::Steam;
+                    else if (patternStr == "Oil") pattern = VisualPattern::Oil;
+                    else if (patternStr == "Blood") pattern = VisualPattern::Blood;
+                    else if (patternStr == "Acid") pattern = VisualPattern::Acid;
+                    else if (patternStr == "Ice") pattern = VisualPattern::Ice;
+                    else if (patternStr == "Lava") pattern = VisualPattern::Lava;
+                    else if (patternStr == "Gas") pattern = VisualPattern::Gas;
+                    else if (patternStr == "Liquid") pattern = VisualPattern::Liquid;
+                    else if (patternStr == "Powder") pattern = VisualPattern::Powder;
+                    
+                    // Get the material to apply visual pattern
+                    MaterialID currentMaterialID = materialSystem.GetMaterialID(name);
+                    if (materialSystem.HasMaterial(currentMaterialID)) {
+                        Material& currentMaterial = materialSystem.GetMaterial(currentMaterialID);
+                        currentMaterial.SetVisualPattern(pattern);
+                        
+                        // Parse secondary color if present
+                        if (visualPattern.contains("secondaryColor")) {
+                            auto secColorArray = visualPattern["secondaryColor"].get<std::vector<uint8_t>>();
+                            if (secColorArray.size() == 4) {
+                                currentMaterial.SetSecondaryColor(secColorArray[0], secColorArray[1], secColorArray[2], secColorArray[3]);
+                            }
+                        }
+                        
+                        // Parse other pattern properties if present
+                        if (visualPattern.contains("patternScale")) {
+                            // Note: Would need to add setter for patternScale if needed
+                        }
+                        if (visualPattern.contains("patternIntensity")) {
+                            // Note: Would need to add setter for patternIntensity if needed
+                        }
+                        if (visualPattern.contains("animationSpeed")) {
+                            // Note: Would need to add setter for animationSpeed if needed
+                        }
+                    }
+                }
+            }
 
             // Get the material to add reactions
             MaterialID currentMaterialID = materialSystem.GetMaterialID(name);

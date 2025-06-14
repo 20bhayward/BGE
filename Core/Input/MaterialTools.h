@@ -3,6 +3,9 @@
 #include "MaterialBrush.h"
 #include "MaterialPalette.h"
 #include "../Math/Vector2.h"
+#include "../../Simulation/Materials/Material.h"
+#include <string>
+#include <vector>
 
 namespace BGE {
 
@@ -12,7 +15,8 @@ class InputManager;
 enum class ToolMode {
     Paint,
     Erase,
-    Sample  // Eyedropper
+    Sample,  // Eyedropper
+    Info     // Material inspector
 };
 
 class MaterialTools {
@@ -49,6 +53,26 @@ public:
     void PaintAt(float screenX, float screenY);
     void EraseAt(float screenX, float screenY);
     void SampleAt(float screenX, float screenY);
+    void InspectAt(float screenX, float screenY);
+    
+    // Material inspection data
+    struct MaterialInfo {
+        bool hasData = false;
+        std::string name = "";
+        std::string description = "";
+        MaterialID materialID = MATERIAL_EMPTY;
+        float temperature = 0.0f;
+        float density = 0.0f;
+        float viscosity = 0.0f;
+        int posX = 0, posY = 0;
+        std::vector<std::string> reactions;
+    };
+    
+    const MaterialInfo& GetInspectedMaterial() const { return m_inspectedMaterial; }
+    
+    // Inspector control
+    void SetInspectorEnabled(bool enabled) { m_inspectorEnabled = enabled; }
+    bool IsInspectorEnabled() const { return m_inspectorEnabled; }
     
     // Simulation control shortcuts
     void ToggleSimulation();
@@ -72,6 +96,10 @@ private:
     int m_viewportY = 0;
     int m_viewportWidth = 800;
     int m_viewportHeight = 600;
+    
+    // Material inspection
+    MaterialInfo m_inspectedMaterial;
+    bool m_inspectorEnabled = true;
     
     void ProcessContinuousPainting();
 };
