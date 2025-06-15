@@ -32,7 +32,10 @@ bool UISystem::Initialize(Window* window) {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    // Note: Docking and Multi-Viewport require special ImGui builds
+    
+    // Set up ImGui ini file path for saving layouts
+    static std::string iniPath = "imgui_layout.ini";
+    io.IniFilename = iniPath.c_str();
     
     // Setup Dear ImGui style
     SetDarkTheme();
@@ -188,5 +191,58 @@ void Spacing() {
 }
 
 } // namespace UI
+
+void UISystem::BeginDockspace() {
+    // Simulated Unity-style docking using child windows
+    ImGuiIO& io = ImGui::GetIO();
+    ImVec2 displaySize = io.DisplaySize;
+    
+    // Create invisible fullscreen window
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(displaySize);
+    
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | 
+                            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                            ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
+                            ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar;
+    
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    
+    ImGui::Begin("##DockSpace", nullptr, flags);
+    ImGui::PopStyleVar(3);
+    
+    // Calculate Unity-style layout areas
+    float menuBarHeight = 20.0f;
+    float leftPanelWidth = 250.0f;
+    float rightPanelWidth = 300.0f;
+    float topToolbarHeight = 35.0f;
+    float bottomPanelHeight = 150.0f;
+    
+    float centerHeight = displaySize.y - menuBarHeight - topToolbarHeight - bottomPanelHeight;
+    float centerStartY = menuBarHeight + topToolbarHeight;
+    
+    m_layoutInfo.leftArea = ImVec4(0, menuBarHeight, leftPanelWidth, centerHeight + topToolbarHeight);
+    m_layoutInfo.topToolbarArea = ImVec4(leftPanelWidth, menuBarHeight,
+                                        displaySize.x - leftPanelWidth - rightPanelWidth,
+                                        topToolbarHeight);
+    m_layoutInfo.centerArea = ImVec4(leftPanelWidth, centerStartY, 
+                                    displaySize.x - leftPanelWidth - rightPanelWidth, 
+                                    centerHeight);
+    m_layoutInfo.rightArea = ImVec4(displaySize.x - rightPanelWidth, menuBarHeight, 
+                                   rightPanelWidth, centerHeight + topToolbarHeight);
+    m_layoutInfo.bottomArea = ImVec4(0, centerStartY + centerHeight,
+                                    displaySize.x, bottomPanelHeight);
+}
+
+void UISystem::EndDockspace() {
+    ImGui::End(); // End DockSpace window
+}
+
+bool UISystem::IsDockingEnabled() const {
+    // Return true for simulated docking
+    return true;
+}
 
 } // namespace BGE

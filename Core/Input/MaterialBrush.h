@@ -9,7 +9,13 @@ class SimulationWorld;
 
 enum class BrushShape {
     Circle,
-    Square
+    Square,
+    Triangle,
+    Diamond,
+    Line,
+    Cross,
+    Star,
+    Plus
 };
 
 class MaterialBrush {
@@ -27,8 +33,6 @@ public:
     void SetShape(BrushShape shape) { m_shape = shape; }
     BrushShape GetShape() const { return m_shape; }
     
-    void SetTemperature(float temperature) { m_temperature = temperature; }
-    float GetTemperature() const { return m_temperature; }
     
     // Brush operations
     void Paint(SimulationWorld* world, int x, int y);
@@ -42,10 +46,15 @@ private:
     MaterialID m_currentMaterial = MATERIAL_EMPTY;
     int m_size = 5;
     BrushShape m_shape = BrushShape::Circle;
-    float m_temperature = 20.0f;
     
     void ApplyCircleBrush(SimulationWorld* world, int centerX, int centerY, MaterialID material);
     void ApplySquareBrush(SimulationWorld* world, int centerX, int centerY, MaterialID material);
+    void ApplyTriangleBrush(SimulationWorld* world, int centerX, int centerY, MaterialID material);
+    void ApplyDiamondBrush(SimulationWorld* world, int centerX, int centerY, MaterialID material);
+    void ApplyLineBrush(SimulationWorld* world, int centerX, int centerY, MaterialID material);
+    void ApplyCrossBrush(SimulationWorld* world, int centerX, int centerY, MaterialID material);
+    void ApplyStarBrush(SimulationWorld* world, int centerX, int centerY, MaterialID material);
+    void ApplyPlusBrush(SimulationWorld* world, int centerX, int centerY, MaterialID material);
 };
 
 } // namespace BGE

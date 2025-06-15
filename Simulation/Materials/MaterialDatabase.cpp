@@ -48,6 +48,10 @@ bool MaterialDatabase::LoadFromFile(const std::string& filepath, MaterialSystem&
 
     BGE_LOG_INFO("MaterialDatabase", "Found materials array with " + std::to_string(jsonData["materials"].size()) + " entries");
 
+    // Store reaction data for later processing after all materials are loaded
+    std::vector<std::pair<std::string, nlohmann::json>> pendingReactions;
+
+    // First pass: Create all materials without reactions
     for (const auto& materialEntry : jsonData["materials"]) {
         try {
             BGE_LOG_INFO("MaterialDatabase", "Processing material entry...");
@@ -86,6 +90,41 @@ bool MaterialDatabase::LoadFromFile(const std::string& filepath, MaterialSystem&
 
             if (hotkey != 0) {
                 builder.SetHotKey(hotkey); // Use the new SetHotKey method
+            }
+
+            // Parse physical properties if present
+            if (materialEntry.contains("physicalProperties") && materialEntry["physicalProperties"].is_object()) {
+                auto physicalProps = materialEntry["physicalProperties"];
+                MaterialID currentMaterialID = materialSystem.GetMaterialID(name);
+                if (materialSystem.HasMaterial(currentMaterialID)) {
+                    Material& currentMaterial = materialSystem.GetMaterial(currentMaterialID);
+                    
+                    if (physicalProps.contains("hardness")) {
+                        currentMaterial.SetHardness(physicalProps["hardness"].get<float>());
+                    }
+                    if (physicalProps.contains("explosiveResistance")) {
+                        currentMaterial.SetExplosiveResistance(physicalProps["explosiveResistance"].get<float>());
+                    }
+                }
+            }
+
+            // Parse reactive properties if present
+            if (materialEntry.contains("reactiveProperties") && materialEntry["reactiveProperties"].is_object()) {
+                auto reactiveProps = materialEntry["reactiveProperties"];
+                MaterialID currentMaterialID = materialSystem.GetMaterialID(name);
+                if (materialSystem.HasMaterial(currentMaterialID)) {
+                    Material& currentMaterial = materialSystem.GetMaterial(currentMaterialID);
+                    
+                    if (reactiveProps.contains("acidity")) {
+                        currentMaterial.SetAcidity(reactiveProps["acidity"].get<float>());
+                    }
+                    if (reactiveProps.contains("reactivity")) {
+                        currentMaterial.SetReactivity(reactiveProps["reactivity"].get<float>());
+                    }
+                    if (reactiveProps.contains("volatility")) {
+                        currentMaterial.SetVolatility(reactiveProps["volatility"].get<float>());
+                    }
+                }
             }
 
             // Parse visual pattern if present
@@ -171,55 +210,9 @@ bool MaterialDatabase::LoadFromFile(const std::string& filepath, MaterialSystem&
                 std::cerr << "Error: Material '" << name << "' was not properly created or registered." << std::endl;
                 continue;
             }
-            Material& currentMaterial = materialSystem.GetMaterial(currentMaterialID);
-
-            // Check for reactions
+            // Store reactions for second pass processing
             if (materialEntry.contains("reactions") && materialEntry["reactions"].is_array()) {
-                for (const auto& reactionEntry : materialEntry["reactions"]) {
-                    try {
-                        std::string reactantName = reactionEntry.at("reactant").get<std::string>();
-                        std::string product1Name = reactionEntry.at("product1").get<std::string>();
-                        std::string product2Name = reactionEntry.value("product2", ""); // Default to empty if missing or null
-
-                        double probability = reactionEntry.at("probability").get<double>();
-                        bool requiresHeat = reactionEntry.at("requiresHeat").get<bool>();
-                        float minTemperature = reactionEntry.at("minTemperature").get<float>();
-
-                        MaterialID reactantID = materialSystem.GetMaterialID(reactantName);
-                        MaterialID product1ID = materialSystem.GetMaterialID(product1Name);
-                        MaterialID product2ID = BGE::MATERIAL_EMPTY;
-
-                        if (reactantID == BGE::MATERIAL_EMPTY && reactantName != "Empty") { // Allow "Empty" to be a valid reactant if needed, though typically not. Or handle if GetMaterialID returns MATERIAL_EMPTY for unknown.
-                            std::cerr << "Error: Unknown reactant material '" << reactantName << "' (ID: " << reactantID << ") in reaction for '" << name << "'." << std::endl;
-                            continue;
-                        }
-                        if (product1ID == BGE::MATERIAL_EMPTY && product1Name != "Empty") {
-                            std::cerr << "Error: Unknown product1 material '" << product1Name << "' (ID: " << product1ID << ") in reaction for '" << name << "'." << std::endl;
-                            continue;
-                        }
-
-                        if (!product2Name.empty()) {
-                            product2ID = materialSystem.GetMaterialID(product2Name);
-                            if (product2ID == BGE::MATERIAL_EMPTY && product2Name != "Empty") {
-                                std::cerr << "Warning: Unknown product2 material '" << product2Name << "' (ID: " << product2ID << ") in reaction for '" << name << "'. Setting to MATERIAL_EMPTY." << std::endl;
-                                // product2ID is already MATERIAL_EMPTY, so just a warning.
-                            }
-                        }
-
-                        BGE::MaterialReaction reaction;
-                        reaction.reactant = reactantID;
-                        reaction.product1 = product1ID;
-                        reaction.product2 = product2ID;
-                        reaction.probability = static_cast<float>(probability); // Assuming probability in struct is float
-                        reaction.requiresHeat = requiresHeat;
-                        reaction.minTemperature = minTemperature;
-
-                        currentMaterial.AddReaction(reaction);
-
-                    } catch (const nlohmann::json::exception& re) {
-                        std::cerr << "Error parsing reaction for material '" << name << "': " << re.what() << std::endl;
-                    }
-                }
+                pendingReactions.emplace_back(name, materialEntry["reactions"]);
             }
 
         } catch (const nlohmann::json::exception& e) {
@@ -232,6 +225,94 @@ bool MaterialDatabase::LoadFromFile(const std::string& filepath, MaterialSystem&
             // For now, we skip.
         }
     }
+    
+    // Second pass: Process all reactions now that all materials exist
+    BGE_LOG_INFO("MaterialDatabase", "Processing " + std::to_string(pendingReactions.size()) + " materials with reactions...");
+    
+    for (const auto& reactionData : pendingReactions) {
+        const std::string& materialName = reactionData.first;
+        const nlohmann::json& reactions = reactionData.second;
+        
+        MaterialID materialID = materialSystem.GetMaterialID(materialName);
+        if (materialID == BGE::MATERIAL_EMPTY) {
+            std::cerr << "Error: Could not find material '" << materialName << "' for reaction processing" << std::endl;
+            continue;
+        }
+        
+        Material& currentMaterial = materialSystem.GetMaterial(materialID);
+        
+        for (const auto& reactionEntry : reactions) {
+            try {
+                std::string reactantName = reactionEntry.at("reactant").get<std::string>();
+                std::string product1Name = reactionEntry.at("product1").get<std::string>();
+                std::string product2Name = reactionEntry.value("product2", "");
+
+                double probability = reactionEntry.at("probability").get<double>();
+                
+                // Parse new reaction properties
+                std::string typeStr = reactionEntry.value("type", "Contact");
+                float speed = reactionEntry.value("speed", 1.0f);
+                int range = reactionEntry.value("range", 1);
+                bool consumeReactant = reactionEntry.value("consumeReactant", true);
+                bool particleEffect = reactionEntry.value("particleEffect", false);
+
+                MaterialID reactantID = materialSystem.GetMaterialID(reactantName);
+                MaterialID product1ID = materialSystem.GetMaterialID(product1Name);
+                MaterialID product2ID = BGE::MATERIAL_EMPTY;
+
+                // Debug material ID lookup
+                std::cout << "DEBUG: Loading reaction for " << materialName << " - reactant '" << reactantName 
+                         << "' -> ID " << reactantID << ", product1 '" << product1Name << "' -> ID " << product1ID << std::endl;
+
+                if (reactantID == BGE::MATERIAL_EMPTY && reactantName != "Empty") {
+                    std::cerr << "Error: Unknown reactant material '" << reactantName << "' (ID: " << reactantID << ") in reaction for '" << materialName << "'." << std::endl;
+                    continue;
+                }
+                if (product1ID == BGE::MATERIAL_EMPTY && product1Name != "Empty") {
+                    std::cerr << "Error: Unknown product1 material '" << product1Name << "' (ID: " << product1ID << ") in reaction for '" << materialName << "'." << std::endl;
+                    continue;
+                }
+
+                if (!product2Name.empty()) {
+                    product2ID = materialSystem.GetMaterialID(product2Name);
+                    if (product2ID == BGE::MATERIAL_EMPTY && product2Name != "Empty") {
+                        std::cerr << "Warning: Unknown product2 material '" << product2Name << "' (ID: " << product2ID << ") in reaction for '" << materialName << "'. Setting to MATERIAL_EMPTY." << std::endl;
+                    }
+                }
+
+                // Parse reaction type
+                ReactionType reactionType = ReactionType::Contact;
+                if (typeStr == "Catalyst") reactionType = ReactionType::Catalyst;
+                else if (typeStr == "Dissolve") reactionType = ReactionType::Dissolve;
+                else if (typeStr == "Explosive") reactionType = ReactionType::Explosive;
+                else if (typeStr == "Corrosive") reactionType = ReactionType::Corrosive;
+                else if (typeStr == "Transform") reactionType = ReactionType::Transform;
+                else if (typeStr == "Growth") reactionType = ReactionType::Growth;
+                else if (typeStr == "Crystallize") reactionType = ReactionType::Crystallize;
+                else if (typeStr == "Electrify") reactionType = ReactionType::Electrify;
+
+                BGE::MaterialReaction reaction;
+                reaction.reactant = reactantID;
+                reaction.product1 = product1ID;
+                reaction.product2 = product2ID;
+                reaction.type = reactionType;
+                reaction.probability = static_cast<float>(probability);
+                reaction.speed = speed;
+                reaction.range = range;
+                reaction.consumeReactant = consumeReactant;
+                reaction.particleEffect = particleEffect;
+
+                currentMaterial.AddReaction(reaction);
+                std::cout << "Successfully added reaction: " << materialName << " + " << reactantName << " -> " << product1Name;
+                if (!product2Name.empty()) std::cout << " + " << product2Name;
+                std::cout << std::endl;
+
+            } catch (const nlohmann::json::exception& re) {
+                std::cerr << "Error parsing reaction for material '" << materialName << "': " << re.what() << std::endl;
+            }
+        }
+    }
+    
     // LoadBasicMaterials(materialSystem); // We are now loading from JSON, so this might not be needed or could be supplemental
     BGE_LOG_INFO("MaterialDatabase", "LoadFromFile completed successfully!");
     return true;

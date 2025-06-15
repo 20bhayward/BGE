@@ -2,6 +2,7 @@
 
 #include "MaterialBrush.h"
 #include "MaterialPalette.h"
+#include "CategorizedMaterialPalette.h"
 #include "../Math/Vector2.h"
 #include "../../Simulation/Materials/Material.h"
 #include <string>
@@ -49,6 +50,9 @@ public:
     MaterialPalette& GetPalette() { return m_palette; }
     const MaterialPalette& GetPalette() const { return m_palette; }
     
+    CategorizedMaterialPalette& GetCategorizedPalette() { return m_categorizedPalette; }
+    const CategorizedMaterialPalette& GetCategorizedPalette() const { return m_categorizedPalette; }
+    
     // Brush painting
     void PaintAt(float screenX, float screenY);
     void EraseAt(float screenX, float screenY);
@@ -83,6 +87,7 @@ private:
     SimulationWorld* m_world = nullptr;
     MaterialBrush m_brush;
     MaterialPalette m_palette;
+    CategorizedMaterialPalette m_categorizedPalette;
     ToolMode m_toolMode = ToolMode::Paint;
     
     // Mouse state

@@ -90,6 +90,8 @@ void MaterialSystem::SaveMaterialDatabase(const std::string& filepath) const {
 
 bool MaterialSystem::ProcessReaction(MaterialID material1, MaterialID material2, 
                                    float temperature, MaterialID& product1, MaterialID& product2) const {
+    (void)temperature; // Suppress unused parameter warning - we use immediate reactions now
+    
     const Material* mat1 = GetMaterialPtr(material1);
     const Material* mat2 = GetMaterialPtr(material2);
     
@@ -100,11 +102,7 @@ bool MaterialSystem::ProcessReaction(MaterialID material1, MaterialID material2,
     // Check reactions from material1
     for (const auto& reaction : mat1->GetReactions()) {
         if (reaction.reactant == material2) {
-            if (reaction.requiresHeat && temperature < reaction.minTemperature) {
-                continue;
-            }
-            
-            // Check probability
+            // Check probability for immediate reaction
             if (static_cast<float>(rand()) / RAND_MAX < reaction.probability) {
                 product1 = reaction.product1;
                 product2 = reaction.product2;
@@ -116,11 +114,7 @@ bool MaterialSystem::ProcessReaction(MaterialID material1, MaterialID material2,
     // Check reactions from material2
     for (const auto& reaction : mat2->GetReactions()) {
         if (reaction.reactant == material1) {
-            if (reaction.requiresHeat && temperature < reaction.minTemperature) {
-                continue;
-            }
-            
-            // Check probability
+            // Check probability for immediate reaction
             if (static_cast<float>(rand()) / RAND_MAX < reaction.probability) {
                 product1 = reaction.product1;
                 product2 = reaction.product2;

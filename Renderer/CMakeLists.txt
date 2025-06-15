@@ -5,6 +5,8 @@ add_library(BGERenderer STATIC
     PixelCamera.h
     ParticleSystem.cpp
     ParticleSystem.h
+    PostProcessor.cpp
+    PostProcessor.h
     Texture.h
 )
 

@@ -44,21 +44,33 @@ public:
     void Emit(const ParticleProperties& properties);
     void Update(float deltaTime);
 
-    // Render method might take a Renderer reference or a specific drawing context
-    void Render(class Renderer& renderer); // Forward declare Renderer or include its header
+    // Enhanced rendering with batching for better performance
+    void Render(class Renderer& renderer);
 
-    // For CreateSparks, to be implemented in a later step
+    // Spark effects for material interactions
     void CreateSparks(Vector2 position, int count);
+    void CreateExplosion(Vector2 position, float intensity, int particleCount);
+    void CreateTrail(Vector2 start, Vector2 end, const Vector3& color, int segments);
+
+    // Physics effects
+    void SetGravity(float gravity) { m_gravity = gravity; }
+    float GetGravity() const { return m_gravity; }
+    
+    // Performance monitoring
+    size_t GetActiveParticleCount() const;
+    size_t GetMaxParticles() const { return m_poolSize; }
 
 private:
     Particle* FindInactiveParticle();
+    void UpdatePhysics(Particle& particle, float deltaTime);
 
     std::vector<Particle> m_particlePool;
     size_t m_poolSize;
     size_t m_currentIndex = 0; // For round-robin inactive particle search
 
-    // Constants
-    static constexpr float DEFAULT_GRAVITY = 98.0f; // Pixels/second^2, adjust as needed for game scale
+    // Physics properties
+    float m_gravity = 98.0f; // Pixels/second^2
+    static constexpr float AIR_RESISTANCE = 0.99f; // Velocity damping factor
 };
 
 } // namespace BGE

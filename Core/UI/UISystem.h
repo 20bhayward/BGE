@@ -2,6 +2,8 @@
 
 #include <memory>
 #include <functional>
+#include <imgui.h>
+#include "LayoutInfo.h"
 
 namespace BGE {
 
@@ -31,11 +33,20 @@ public:
     void SetDarkTheme();
     void SetLightTheme();
     void SetCustomTheme();
+    
+    // Docking and viewport management
+    void BeginDockspace();
+    void EndDockspace();
+    bool IsDockingEnabled() const;
+    
+    // Layout management
+    const LayoutInfo& GetLayoutInfo() const { return m_layoutInfo; }
 
 private:
     bool m_enabled = true;
     bool m_initialized = false;
     Window* m_window = nullptr;
+    LayoutInfo m_layoutInfo;
     
     void SetupStyle();
 };

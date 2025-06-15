@@ -1,7 +1,14 @@
 #pragma once
 
-#include "UISystem.h"
+#include <memory>
 #include "../Input/MaterialTools.h"
+#include "UnityLayoutManager.h"
+#include "Panel.h"
+
+// Forward declarations
+namespace BGE {
+    class UISystem;
+}
 
 namespace BGE {
 
@@ -13,45 +20,38 @@ public:
     ~MaterialEditorUI() = default;
     
     void Initialize(MaterialTools* tools, SimulationWorld* world);
+    void Shutdown();
     void Render();
+    
+    // Layout management
+    UnityLayoutManager& GetLayoutManager() { return m_layoutManager; }
     
     // UI state
     bool IsVisible() const { return m_visible; }
     void SetVisible(bool visible) { m_visible = visible; }
     
-    // Panel visibility
-    void ShowMaterialPalette(bool show) { m_showMaterialPalette = show; }
-    void ShowSimulationControls(bool show) { m_showSimulationControls = show; }
-    void ShowBrushSettings(bool show) { m_showBrushSettings = show; }
-    void ShowStatusPanel(bool show) { m_showStatusPanel = show; }
-    void ShowMaterialInfo(bool show) { m_showMaterialInfo = show; }
 
 private:
-    void RenderMaterialPalette();
-    void RenderSimulationControls();
-    void RenderBrushSettings();
-    void RenderStatusPanel();
-    void RenderMaterialInfo();
     void RenderMainMenuBar();
+    void SetupDefaultLayout();
     
     MaterialTools* m_materialTools = nullptr;
     SimulationWorld* m_world = nullptr;
     
+    // Unity-style layout management
+    UnityLayoutManager m_layoutManager;
+    
+    // Panel instances
+    std::shared_ptr<Panel> m_assetBrowserPanel;
+    std::shared_ptr<Panel> m_hierarchyPanel;
+    std::shared_ptr<Panel> m_debugToolbarPanel;
+    std::shared_ptr<Panel> m_gameViewportPanel;
+    std::shared_ptr<Panel> m_inspectorPanel;
+    std::shared_ptr<Panel> m_materialPalettePanel;
+    
     // UI state
     bool m_visible = true;
-    bool m_showMaterialPalette = true;
-    bool m_showSimulationControls = true;
-    bool m_showBrushSettings = true;
-    bool m_showStatusPanel = true;
-    bool m_showMaterialInfo = true;
     bool m_showDemoWindow = false;
-    
-    // Layout
-    float m_paletteWidth = 200.0f;
-    float m_controlsHeight = 120.0f;
-    
-    // Colors for UI
-    static constexpr float PANEL_ALPHA = 0.95f;
 };
 
 } // namespace BGE

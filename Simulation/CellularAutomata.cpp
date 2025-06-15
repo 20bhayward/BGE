@@ -21,8 +21,173 @@ bool CellularAutomata::IsEmpty(int x, int y) const {
 }
 
 void CellularAutomata::ProcessReactions(int x, int y, float deltaTime) {
-    (void)x; (void)y; (void)deltaTime;
-    // TODO: Implement chemical reactions between materials
+    (void)deltaTime; // Parameter available for future time-based reactions
+    if (!m_world) return;
+    
+    MaterialID currentMaterial = m_world->GetMaterial(x, y);
+    if (currentMaterial == MATERIAL_EMPTY) return;
+    
+    MaterialSystem* materialSystem = m_world->GetMaterialSystem();
+    if (!materialSystem) return;
+    
+    const Material* mat = materialSystem->GetMaterialPtr(currentMaterial);
+    if (!mat || mat->GetReactions().empty()) return;
+    
+    // Debug: Log when we find a material with reactions
+    static int debugCount = 0;
+    if (debugCount < 5 && !mat->GetReactions().empty()) {
+        std::cout << "DEBUG: Material " << mat->GetName() << " has " << mat->GetReactions().size() << " reactions" << std::endl;
+        debugCount++;
+    }
+    
+    // Check all 8 neighboring cells for potential reactions
+    static const std::array<std::pair<int, int>, 8> neighbors = {{
+        {-1, -1}, {0, -1}, {1, -1},
+        {-1,  0},          {1,  0},
+        {-1,  1}, {0,  1}, {1,  1}
+    }};
+    
+    for (const auto& offset : neighbors) {
+        int nx = x + offset.first;
+        int ny = y + offset.second;
+        
+        if (!m_world->IsValidPosition(nx, ny)) continue;
+        
+        MaterialID neighborMaterial = m_world->GetMaterial(nx, ny);
+        if (neighborMaterial == MATERIAL_EMPTY) continue;
+        
+        // Try reaction between current material and neighbor
+        MaterialID product1, product2;
+        if (materialSystem->ProcessReaction(currentMaterial, neighborMaterial, 20.0f, product1, product2)) {
+            // Reaction occurred - check reaction type to determine how to handle it
+            static int reactionCount = 0;
+            if (reactionCount < 10) {
+                std::cout << "DEBUG: Reaction " << reactionCount << " - " << mat->GetName() 
+                         << " + neighbor -> products " << product1 << ", " << product2 << std::endl;
+                reactionCount++;
+            }
+            
+            // Find the specific reaction that occurred to get its type
+            bool specialReactionHandled = false;
+            for (const auto& reaction : mat->GetReactions()) {
+                if (reaction.reactant == neighborMaterial) {
+                    // Handle special reaction types that don't change materials normally
+                    if (reaction.type == ReactionType::Electrify) {
+                        // Apply electrified effect to the neighbor instead of changing material
+                        uint8_t intensity = static_cast<uint8_t>(reaction.speed * 20); // Convert speed to intensity
+                        uint8_t duration = static_cast<uint8_t>(reaction.range * 30);  // Convert range to duration
+                        m_world->SetEffect(nx, ny, EffectLayer::Electrified, intensity, duration);
+                        
+                        // Debug electrification
+                        static int electrifyCount = 0;
+                        if (electrifyCount < 5) {
+                            std::cout << "DEBUG: Electrify reaction applied! " << mat->GetName() 
+                                     << " -> " << materialSystem->GetMaterialPtr(neighborMaterial)->GetName()
+                                     << " intensity=" << (int)intensity << " duration=" << (int)duration << std::endl;
+                            electrifyCount++;
+                        }
+                        
+                        // For Electrify reactions, we don't change materials - just apply the effect
+                        specialReactionHandled = true;
+                        break;
+                    }
+                    
+                    // Handle burning reactions - special case for fire + wood
+                    if (reaction.type == ReactionType::Growth && 
+                        mat->GetName() == "Fire" && 
+                        materialSystem->GetMaterialPtr(neighborMaterial) && 
+                        materialSystem->GetMaterialPtr(neighborMaterial)->GetName() == "Wood") {
+                        
+                        // Don't change wood to fire - add burning effect layer
+                        uint8_t burnIntensity = static_cast<uint8_t>(reaction.speed * 150);
+                        uint8_t burnDuration = static_cast<uint8_t>(reaction.range * 60);
+                        m_world->SetEffect(nx, ny, EffectLayer::Burning, burnIntensity, burnDuration);
+                        
+                        // Sometimes create fire nearby or smoke
+                        if (RandomChance(reaction.probability * 0.3f)) {
+                            // Create fire in adjacent empty space
+                            for (const auto& fireOffset : NEIGHBOR_OFFSETS) {
+                                int fx = nx + fireOffset.first;
+                                int fy = ny + fireOffset.second;
+                                if (m_world->IsValidPosition(fx, fy) && 
+                                    m_world->GetMaterial(fx, fy) == MATERIAL_EMPTY) {
+                                    m_world->SetNextMaterial(fx, fy, currentMaterial); // Spread fire
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Rare chance to emit smoke while burning
+                        if (RandomChance(0.01f)) {
+                            MaterialID smokeID = materialSystem->GetMaterialID("Smoke");
+                            if (smokeID != MATERIAL_EMPTY) {
+                                // Find empty space above for smoke
+                                for (int sy = ny - 3; sy <= ny - 1; ++sy) {
+                                    if (m_world->IsValidPosition(nx, sy) && 
+                                        m_world->GetMaterial(nx, sy) == MATERIAL_EMPTY) {
+                                        m_world->SetNextMaterial(nx, sy, smokeID);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Extremely rare chance to create ash when wood burns (0.01% = 1 in 10,000)
+                        if (RandomChance(0.0001f)) {
+                            MaterialID ashID = materialSystem->GetMaterialID("Ash");
+                            if (ashID != MATERIAL_EMPTY) {
+                                // Find empty space nearby for ash
+                                for (const auto& ashOffset : NEIGHBOR_OFFSETS) {
+                                    int ax = nx + ashOffset.first;
+                                    int ay = ny + ashOffset.second;
+                                    if (m_world->IsValidPosition(ax, ay) && 
+                                        m_world->GetMaterial(ax, ay) == MATERIAL_EMPTY) {
+                                        m_world->SetNextMaterial(ax, ay, ashID);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Fire + wood burning is a special reaction that doesn't change materials
+                        specialReactionHandled = true;
+                        break;
+                    }
+                    
+                    // Handle explosive reactions
+                    if (reaction.type == ReactionType::Explosive) {
+                        float explosionPower = reaction.speed * reaction.probability;
+                        float explosionRadius = static_cast<float>(reaction.range);
+                        CreateExplosion(x, y, explosionPower, explosionRadius);
+                        
+                        // Explosive reactions still change materials after explosion
+                        break;
+                    }
+                    
+                    if (reaction.particleEffect) {
+                        // TODO: Trigger particle effect at position (x, y)
+                        // This would integrate with the ParticleSystem
+                    }
+                    
+                    break; // Found the reaction, stop looking
+                }
+            }
+            
+            // Only apply material changes if it wasn't a special reaction that handles itself
+            if (!specialReactionHandled) {
+                // Set current cell to product1 in next grid
+                m_world->SetNextMaterial(x, y, product1);
+                
+                // Set neighbor to product2 (if not empty) in next grid
+                if (product2 != MATERIAL_EMPTY) {
+                    m_world->SetNextMaterial(nx, ny, product2);
+                }
+            }
+            
+            // Only process one reaction per cell per frame to avoid cascading
+            return;
+        }
+    }
 }
 
 void CellularAutomata::Update(float deltaTime) {
@@ -455,6 +620,12 @@ void CellularAutomata::ProcessFire(int x, int y) {
     
     if (!material) return;
     
+    // Special handling for Lightning
+    if (material->GetName() == "Lightning") {
+        ProcessLightning(x, y);
+        return;
+    }
+    
     // Fire movement: rises due to buoyancy
     if (RandomChance(0.7f)) { // 70% chance to rise
         if (TryMove(x, y, x, y - 1)) return;
@@ -473,7 +644,7 @@ void CellularAutomata::ProcessFire(int x, int y) {
     // Process normal fire behavior
     ProcessNormalFire(x, y, 60); // Fixed lifetime for now
     
-    // Fire burns out quickly
+    // Fire burns out quickly - no ash, just disappears
     if (RandomChance(0.05f)) { // 5% chance per frame to burn out
         m_world->SetNextMaterial(x, y, MATERIAL_EMPTY);
     }
@@ -485,7 +656,6 @@ void CellularAutomata::ProcessNormalFire(int x, int y, uint8_t fireLife) {
     // Normal fire: Burns combustible materials directly
     MaterialSystem* materials = m_world->GetMaterialSystem();
     MaterialID woodID = materials->GetMaterialID("Wood");
-    MaterialID ashID = materials->GetMaterialID("Ash");
     MaterialID fireID = materials->GetMaterialID("Fire");
     MaterialID waterID = materials->GetMaterialID("Water");
     MaterialID steamID = materials->GetMaterialID("Steam");
@@ -528,12 +698,74 @@ void CellularAutomata::ProcessNormalFire(int x, int y, uint8_t fireLife) {
         }
     }
     
-    // Small chance to leave ash behind when burning out
-    if (RandomChance(0.05f) && ashID != MATERIAL_EMPTY) {
-        m_world->SetNextMaterial(x, y, ashID);
-    }
+    // Fire doesn't create ash - only wood burning creates ash
 }
 
+void CellularAutomata::ProcessLightning(int x, int y) {
+    // Lightning creates branching electrical patterns and dies out quickly
+    MaterialSystem* materials = m_world->GetMaterialSystem();
+    MaterialID lightningID = materials->GetMaterialID("Lightning");
+    
+    // Lightning lasts very briefly (faster than fire)
+    if (RandomChance(0.15f)) { // 15% chance per frame to disappear
+        m_world->SetNextMaterial(x, y, MATERIAL_EMPTY);
+        return;
+    }
+    
+    // Lightning creates branching patterns - tries to spread in multiple directions
+    if (RandomChance(0.2f)) { // 20% chance to branch (much lower)
+        // Create 1-2 lightning branches in different directions
+        int branchCount = rand() % 2 + 1; // 1-2 branches only
+        
+        static const std::array<std::pair<int, int>, 8> directions = {{
+            {0, -1}, {1, -1}, {1, 0}, {1, 1},   // Up, UpRight, Right, DownRight
+            {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}  // Down, DownLeft, Left, UpLeft
+        }};
+        
+        for (int i = 0; i < branchCount; ++i) {
+            // Random direction for each branch
+            int dirIndex = rand() % 8;
+            int dx = directions[dirIndex].first;
+            int dy = directions[dirIndex].second;
+            
+            // Try to create lightning line in this direction
+            for (int step = 1; step <= 2; ++step) { // Up to 2 pixels in line only
+                int nx = x + dx * step;
+                int ny = y + dy * step;
+                
+                if (!m_world->IsValidPosition(nx, ny)) break;
+                
+                MaterialID neighborMaterial = m_world->GetMaterial(nx, ny);
+                
+                // Lightning spreads through empty space and conducts through metal/water
+                if (neighborMaterial == MATERIAL_EMPTY) {
+                    if (RandomChance(0.3f - step * 0.15f)) { // Much lower probability, decreases with distance
+                        m_world->SetNextMaterial(nx, ny, lightningID);
+                    }
+                } else {
+                    // Hit a material - check if it conducts
+                    const Material* mat = materials->GetMaterialPtr(neighborMaterial);
+                    if (mat && mat->GetName() == "Metal") {
+                        // Metal conducts - continue lightning through it
+                        if (RandomChance(0.9f)) {
+                            m_world->SetNextMaterial(nx, ny, lightningID);
+                        }
+                    } else if (mat && mat->GetName() == "Water") {
+                        // Water conducts but electrifies instead of becoming lightning
+                        m_world->SetEffect(nx, ny, EffectLayer::Electrified, 255, 120);
+                    } else {
+                        // Non-conductive material - lightning stops
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Lightning doesn't move like fire - it stays in place but creates effects
+    // Add electrical effect to current position
+    m_world->SetEffect(x, y, EffectLayer::Electrified, 255, 60);
+}
 
 void CellularAutomata::ProcessLava(int x, int y, float viscosity, float density) {
     (void)density; // Parameter available for future use
@@ -2458,6 +2690,127 @@ float CellularAutomata::GetPowderCohesion(const std::string& materialName) {
     
     // Default value for unknown powders
     return 0.2f;
+}
+
+void CellularAutomata::CreateExplosion(int centerX, int centerY, float power, float radius) {
+    if (!m_world) return;
+    
+    // Create explosion pattern in a circle around the center
+    int radiusInt = static_cast<int>(radius + 0.5f);
+    
+    for (int dy = -radiusInt; dy <= radiusInt; ++dy) {
+        for (int dx = -radiusInt; dx <= radiusInt; ++dx) {
+            int x = centerX + dx;
+            int y = centerY + dy;
+            
+            if (!m_world->IsValidPosition(x, y)) continue;
+            
+            // Calculate distance from explosion center
+            float distance = std::sqrt(static_cast<float>(dx * dx + dy * dy));
+            if (distance > radius) continue;
+            
+            // Calculate explosion force (stronger at center)
+            float force = power * (1.0f - distance / radius);
+            
+            MaterialID currentMaterial = m_world->GetMaterial(x, y);
+            if (currentMaterial == MATERIAL_EMPTY) continue;
+            
+            // Check if material can be destroyed by this explosion
+            if (CanDestroyMaterial(currentMaterial, force)) {
+                // Destroy material - replace with appropriate debris or empty space
+                MaterialSystem* materialSystem = m_world->GetMaterialSystem();
+                if (materialSystem) {
+                    const Material* mat = materialSystem->GetMaterialPtr(currentMaterial);
+                    if (mat && mat->GetPhysicalProps().hardness < force) {
+                        // Spectacular explosion effects - more fire, burning layers, blackening
+                        if (force > 3.0f) {
+                            // Intense explosions: Create fire and add burning effects to surrounding area
+                            m_world->SetNextMaterial(x, y, materialSystem->GetMaterialID("Fire"));
+                            
+                            // Add burning effect to nearby materials
+                            for (int bdy = -2; bdy <= 2; ++bdy) {
+                                for (int bdx = -2; bdx <= 2; ++bdx) {
+                                    int fx = x + bdx;
+                                    int fy = y + bdy;
+                                    if (m_world->IsValidPosition(fx, fy)) {
+                                        MaterialID nearMaterial = m_world->GetMaterial(fx, fy);
+                                        if (nearMaterial != MATERIAL_EMPTY && nearMaterial != materialSystem->GetMaterialID("Fire")) {
+                                            // Add burning effect layer
+                                            uint8_t burnIntensity = static_cast<uint8_t>(200 - (bdx*bdx + bdy*bdy) * 20);
+                                            if (burnIntensity > 50) {
+                                                m_world->SetEffect(fx, fy, EffectLayer::Burning, burnIntensity, 180);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (force > 1.5f) {
+                            // Medium explosions: Fire + blackening effects
+                            if (RandomChance(0.7f)) {
+                                m_world->SetNextMaterial(x, y, materialSystem->GetMaterialID("Fire"));
+                            } else {
+                                m_world->SetNextMaterial(x, y, materialSystem->GetMaterialID("Smoke"));
+                            }
+                            
+                            // Add blackening effect to show blast damage
+                            m_world->SetEffect(x, y, EffectLayer::Blackened, 150, 240);
+                        } else {
+                            // Weak explosions: Debris + blackening
+                            if (mat->GetBehavior() == MaterialBehavior::Static) {
+                                MaterialID ashID = materialSystem->GetMaterialID("Ash");
+                                if (ashID != MATERIAL_EMPTY) {
+                                    m_world->SetNextMaterial(x, y, ashID);
+                                } else {
+                                    m_world->SetNextMaterial(x, y, MATERIAL_EMPTY);
+                                }
+                            } else {
+                                m_world->SetNextMaterial(x, y, MATERIAL_EMPTY);
+                            }
+                            
+                            // Light blackening effect
+                            m_world->SetEffect(x, y, EffectLayer::Blackened, 80, 120);
+                        }
+                    }
+                }
+            } else {
+                // Material survived explosion - might create fire nearby if it's flammable
+                if (force > 2.0f && RandomChance(0.3f)) {
+                    MaterialSystem* materialSystem = m_world->GetMaterialSystem();
+                    if (materialSystem) {
+                        MaterialID fireID = materialSystem->GetMaterialID("Fire");
+                        if (fireID != MATERIAL_EMPTY) {
+                            // Try to place fire in adjacent empty spaces
+                            for (const auto& offset : NEIGHBOR_OFFSETS) {
+                                int fx = x + offset.first;
+                                int fy = y + offset.second;
+                                if (m_world->IsValidPosition(fx, fy) && 
+                                    m_world->GetMaterial(fx, fy) == MATERIAL_EMPTY) {
+                                    m_world->SetNextMaterial(fx, fy, fireID);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+bool CellularAutomata::CanDestroyMaterial(MaterialID material, float explosivePower) const {
+    if (!m_world || material == MATERIAL_EMPTY) return false;
+    
+    MaterialSystem* materialSystem = m_world->GetMaterialSystem();
+    if (!materialSystem) return false;
+    
+    const Material* mat = materialSystem->GetMaterialPtr(material);
+    if (!mat) return false;
+    
+    const auto& physProps = mat->GetPhysicalProps();
+    
+    // Material can be destroyed if explosion power exceeds its resistance
+    float totalResistance = physProps.hardness + physProps.explosiveResistance;
+    return explosivePower > totalResistance;
 }
 
 } // namespace BGE

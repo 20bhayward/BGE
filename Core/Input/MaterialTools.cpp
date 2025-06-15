@@ -20,6 +20,9 @@ bool MaterialTools::Initialize(SimulationWorld* world) {
     // Initialize palette with the world's material system
     m_palette.Initialize(world->GetMaterialSystem());
     
+    // Initialize categorized palette
+    m_categorizedPalette.Initialize(world->GetMaterialSystem());
+    
     // Set initial brush material to first palette item (sand)
     if (m_palette.GetMaterialCount() > 1) {
         m_palette.SelectMaterial(1); // Skip eraser, select sand
@@ -123,7 +126,7 @@ void MaterialTools::OnKeyPressed(int key) {
             m_brush.SetSize(std::max(1, m_brush.GetSize() - 1));
             break;
         case ']': // Increase brush size
-            m_brush.SetSize(std::min(20, m_brush.GetSize() + 1));
+            m_brush.SetSize(std::min(100, m_brush.GetSize() + 1));
             break;
     }
 }

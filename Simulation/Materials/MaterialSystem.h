@@ -62,6 +62,21 @@ public:
             return *this;
         }
         
+        MaterialBuilder& SetReactivity(float reactivity) {
+            m_material.SetReactivity(reactivity);
+            return *this;
+        }
+        
+        MaterialBuilder& SetAcidity(float acidity) {
+            m_material.SetAcidity(acidity);
+            return *this;
+        }
+        
+        MaterialBuilder& SetVolatility(float volatility) {
+            m_material.SetVolatility(volatility);
+            return *this;
+        }
+        
         MaterialID GetID() const {
             return m_material.GetID();
         }

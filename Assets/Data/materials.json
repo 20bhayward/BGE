@@ -6,7 +6,7 @@
       "description": "Falls and piles naturally",
       "behavior": "Powder",
       "color": [194, 178, 128, 255],
-      "density": 1.6,
+      "density": 1.8,
       "hotkey": 49,
       "visualPattern": {
         "pattern": "Sand",
@@ -21,7 +21,7 @@
       "description": "Pure water - freezes, boils, and reacts",
       "behavior": "Liquid",
       "color": [64, 164, 223, 200],
-      "density": 1.0,
+      "density": 0.6,
       "viscosity": 0.1,
       "visualPattern": {
         "pattern": "Liquid",
@@ -40,63 +40,75 @@
         {
           "reactant": "Fire",
           "product1": "Steam",
-          "probability": 0.3,
-          "requiresHeat": true,
-          "minTemperature": 95.0
+          "type": "Contact",
+          "probability": 0.4,
+          "speed": 1.5,
+          "particleEffect": true
         },
         {
           "reactant": "Lava",
           "product1": "Steam",
+          "type": "Contact", 
           "probability": 0.8,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "speed": 2.0,
+          "particleEffect": true
         },
         {
-          "reactant": "LiquidNitrogen",
-          "product1": "Ice",
-          "probability": 0.9,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "reactant": "Acid",
+          "product1": "Water",
+          "product2": "Smoke",
+          "type": "Dissolve",
+          "probability": 0.6,
+          "speed": 0.8
         }
       ]
     },
     {
       "id": 3,
       "name": "Fire",
-      "description": "Spreads and consumes fuel",
-      "behavior": "Gas",
-      "color": [255, 0, 0, 200],
-      "density": 0.5,
+      "description": "Spreads and consumes fuel - short lifespan, hot and bright",
+      "behavior": "Fire",
+      "color": [255, 140, 0, 220],
+      "density": 0.1,
       "hotkey": 51,
+      "physicalProperties": {
+        "hardness": 0.0,
+        "explosiveResistance": 0.0
+      },
       "visualPattern": {
         "pattern": "Flame",
-        "patternScale": 1.0,
-        "patternIntensity": 0.6,
-        "animationSpeed": 0.3
+        "secondaryColor": [255, 255, 100, 180],
+        "patternScale": 1.2,
+        "patternIntensity": 0.8,
+        "animationSpeed": 0.5
       },
       "reactions": [
         {
           "reactant": "Wood",
           "product1": "Fire",
-          "product2": "Ash",
-          "probability": 0.05,
-          "requiresHeat": true,
-          "minTemperature": 300.0
+          "type": "Growth",
+          "probability": 0.01,
+          "speed": 0.3,
+          "range": 1,
+          "particleEffect": true
         },
         {
           "reactant": "Oil",
           "product1": "Fire",
           "product2": "Smoke",
-          "probability": 0.4,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "type": "Explosive",
+          "probability": 0.6,
+          "speed": 3.0,
+          "range": 3,
+          "particleEffect": true
         },
         {
-          "reactant": "Nitrogen",
-          "product1": "Smoke",
-          "probability": 0.9,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "reactant": "Water",
+          "product1": "Steam",
+          "type": "Contact",
+          "probability": 0.7,
+          "speed": 2.0,
+          "consumeReactant": false
         }
       ]
     },
@@ -108,6 +120,10 @@
       "color": [139, 69, 19, 255],
       "density": 0.7,
       "hotkey": 52,
+      "physicalProperties": {
+        "hardness": 0.4,
+        "explosiveResistance": 0.1
+      },
       "visualPattern": {
         "pattern": "Wood",
         "patternScale": 1.0,
@@ -118,17 +134,18 @@
         {
           "reactant": "Acid",
           "product1": "ToxicGas",
+          "type": "Corrosive",
           "probability": 0.6,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "speed": 1.0,
+          "particleEffect": true
         },
         {
           "reactant": "Lava",
           "product1": "Fire",
-          "product2": "Ash",
-          "probability": 0.9,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "type": "Contact",
+          "probability": 0.15,
+          "speed": 2.0,
+          "particleEffect": true
         }
       ]
     },
@@ -225,9 +242,11 @@
           "reactant": "Fire",
           "product1": "Fire",
           "product2": "Smoke",
+          "type": "Explosive",
           "probability": 0.8,
-          "requiresHeat": true,
-          "minTemperature": 50.0
+          "speed": 3.0,
+          "range": 3,
+          "particleEffect": true
         }
       ]
     },
@@ -255,9 +274,10 @@
         {
           "reactant": "Fire",
           "product1": "Nitrogen",
+          "type": "Contact",
           "probability": 0.9,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "speed": 1.0,
+          "consumeReactant": false
         }
       ]
     },
@@ -286,16 +306,18 @@
         {
           "reactant": "Fire",
           "product1": "Nitrogen",
+          "type": "Contact",
           "probability": 1.0,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "speed": 2.0,
+          "particleEffect": true
         },
         {
           "reactant": "Lava",
           "product1": "Nitrogen",
+          "type": "Contact",
           "probability": 1.0,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "speed": 2.0,
+          "particleEffect": true
         }
       ]
     },
@@ -305,7 +327,7 @@
       "description": "Molten rock that burns and solidifies",
       "behavior": "Liquid",
       "color": [255, 69, 0, 255],
-      "density": 3.0,
+      "density": 0.7,
       "viscosity": 0.8,
       "thermalProperties": {
         "meltingPoint": 1000.0,
@@ -324,17 +346,19 @@
         {
           "reactant": "LiquidNitrogen",
           "product1": "Stone",
+          "type": "Transform",
           "probability": 0.8,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "speed": 1.0,
+          "particleEffect": true
         },
         {
           "reactant": "Acid",
           "product1": "ToxicGas",
           "product2": "Steam",
+          "type": "Dissolve",
           "probability": 0.9,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "speed": 1.5,
+          "particleEffect": true
         }
       ]
     },
@@ -344,7 +368,7 @@
       "description": "Corrosive liquid that dissolves materials",
       "behavior": "Liquid",
       "color": [124, 252, 0, 220],
-      "density": 1.2,
+      "density": 0.9,
       "viscosity": 0.2,
       "thermalProperties": {
         "meltingPoint": -10.0,
@@ -363,17 +387,20 @@
         {
           "reactant": "Water",
           "product1": "ToxicGas",
+          "type": "Dissolve",
           "probability": 0.8,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "speed": 1.2,
+          "particleEffect": true
         },
         {
           "reactant": "Oil",
           "product1": "ToxicGas",
           "product2": "Fire",
+          "type": "Explosive",
           "probability": 0.9,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "speed": 2.5,
+          "range": 2,
+          "particleEffect": true
         }
       ]
     },
@@ -405,6 +432,10 @@
       "behavior": "Static",
       "color": [128, 128, 128, 255],
       "density": 2.7,
+      "physicalProperties": {
+        "hardness": 1.5,
+        "explosiveResistance": 0.8
+      },
       "visualPattern": {
         "pattern": "Rock",
         "patternScale": 1.0,
@@ -447,6 +478,10 @@
       "behavior": "Static",
       "color": [192, 192, 192, 255],
       "density": 7.8,
+      "physicalProperties": {
+        "hardness": 2.0,
+        "explosiveResistance": 1.2
+      },
       "visualPattern": {
         "pattern": "Metal",
         "patternScale": 1.0,
@@ -473,9 +508,11 @@
           "reactant": "Fire",
           "product1": "Fire",
           "product2": "Smoke",
+          "type": "Explosive",
           "probability": 0.9,
-          "requiresHeat": false,
-          "minTemperature": 0.0
+          "speed": 5.0,
+          "range": 5,
+          "particleEffect": true
         }
       ]
     },
@@ -503,9 +540,10 @@
         {
           "reactant": "Fire",
           "product1": "Water",
+          "type": "Transform",
           "probability": 0.7,
-          "requiresHeat": true,
-          "minTemperature": 10.0
+          "speed": 1.5,
+          "particleEffect": true
         }
       ]
     },
@@ -597,9 +635,11 @@
           "reactant": "Fire",
           "product1": "Fire",
           "product2": "Smoke",
+          "type": "Growth",
           "probability": 0.1,
-          "requiresHeat": true,
-          "minTemperature": 400.0
+          "speed": 0.8,
+          "range": 2,
+          "particleEffect": true
         }
       ]
     },
@@ -673,6 +713,411 @@
         "patternIntensity": 0.4,
         "animationSpeed": 0.0
       }
+    },
+    {
+      "id": 31,
+      "name": "Acid",
+      "description": "Dissolves other materials on contact",
+      "behavior": "Liquid",
+      "color": [50, 255, 50, 200],
+      "density": 1.2,
+      "hotkey": 113,
+      "visualPattern": {
+        "pattern": "Acid",
+        "patternScale": 1.0,
+        "patternIntensity": 0.8,
+        "animationSpeed": 0.4
+      },
+      "reactiveProperties": {
+        "acidity": 1.0,
+        "reactivity": 2.0
+      },
+      "reactions": [
+        {
+          "reactant": "Stone",
+          "product1": "Smoke",
+          "product2": "Water",
+          "type": "Dissolve",
+          "probability": 0.3,
+          "speed": 1.0,
+          "particleEffect": true
+        },
+        {
+          "reactant": "Wood",
+          "product1": "Smoke",
+          "type": "Corrosive",
+          "probability": 0.4,
+          "speed": 0.8,
+          "range": 2
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "name": "Gunpowder",
+      "description": "Explosive powder - ignites with fire",
+      "behavior": "Powder",
+      "color": [64, 64, 64, 255],
+      "density": 0.9,
+      "hotkey": 119,
+      "visualPattern": {
+        "pattern": "Powder",
+        "patternScale": 0.6,
+        "patternIntensity": 0.7,
+        "animationSpeed": 0.0
+      },
+      "reactiveProperties": {
+        "volatility": 0.9,
+        "reactivity": 1.8
+      },
+      "reactions": [
+        {
+          "reactant": "Fire",
+          "product1": "Fire",
+          "product2": "Smoke",
+          "type": "Explosive",
+          "probability": 0.9,
+          "speed": 5.0,
+          "range": 5,
+          "particleEffect": true
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "name": "Crystal",
+      "description": "Grows and spreads when touching water",
+      "behavior": "Static",
+      "color": [150, 200, 255, 255],
+      "density": 2.0,
+      "hotkey": 101,
+      "visualPattern": {
+        "pattern": "Crystal",
+        "patternScale": 1.2,
+        "patternIntensity": 0.9,
+        "animationSpeed": 0.1
+      },
+      "reactiveProperties": {
+        "growthRate": 0.3
+      },
+      "reactions": [
+        {
+          "reactant": "Water",
+          "product1": "Crystal",
+          "type": "Growth",
+          "probability": 0.002,
+          "speed": 0.006,
+          "range": 2,
+          "consumeReactant": true
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "name": "FrostFire",
+      "description": "Cold blue fire that freezes instead of burns",
+      "behavior": "Fire",
+      "color": [100, 150, 255, 200],
+      "density": 0.08,
+      "hotkey": 117,
+      "physicalProperties": {
+        "hardness": 0.0,
+        "explosiveResistance": 0.0
+      },
+      "visualPattern": {
+        "pattern": "Flame",
+        "secondaryColor": [200, 220, 255, 150],
+        "patternScale": 1.0,
+        "patternIntensity": 0.7,
+        "animationSpeed": 0.3
+      },
+      "reactions": [
+        {
+          "reactant": "Water",
+          "product1": "EnchantedIce",
+          "type": "Transform",
+          "probability": 0.8,
+          "speed": 1.5,
+          "particleEffect": true
+        },
+        {
+          "reactant": "Fire",
+          "product1": "Steam",
+          "type": "Contact",
+          "probability": 0.9,
+          "speed": 2.0,
+          "particleEffect": true
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "name": "VoidFire",
+      "description": "Dark purple fire that consumes everything",
+      "behavior": "Fire",
+      "color": [80, 0, 120, 200],
+      "density": 0.05,
+      "hotkey": 121,
+      "physicalProperties": {
+        "hardness": 0.0,
+        "explosiveResistance": 0.0
+      },
+      "visualPattern": {
+        "pattern": "Flame",
+        "secondaryColor": [40, 0, 80, 180],
+        "patternScale": 1.5,
+        "patternIntensity": 0.9,
+        "animationSpeed": 0.7
+      },
+      "reactions": [
+        {
+          "reactant": "Stone",
+          "product1": "VoidFire",
+          "type": "Corrosive",
+          "probability": 0.005,
+          "speed": 0.1,
+          "range": 2,
+          "particleEffect": true
+        },
+        {
+          "reactant": "Metal",
+          "product1": "VoidFire",
+          "type": "Dissolve",
+          "probability": 0.008,
+          "speed": 0.15,
+          "particleEffect": true
+        },
+        {
+          "reactant": "Wood",
+          "product1": "VoidFire",
+          "type": "Corrosive",
+          "probability": 0.01,
+          "speed": 0.2,
+          "range": 1,
+          "particleEffect": true
+        },
+        {
+          "reactant": "Water",
+          "product1": "VoidFire",
+          "type": "Corrosive",
+          "probability": 0.003,
+          "speed": 0.05,
+          "particleEffect": true
+        },
+        {
+          "reactant": "Sand",
+          "product1": "VoidFire",
+          "type": "Corrosive", 
+          "probability": 0.002,
+          "speed": 0.03
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "name": "EternalFire",
+      "description": "Golden fire that never dies and spreads rapidly",
+      "behavior": "Fire",
+      "color": [255, 215, 0, 255],
+      "density": 0.12,
+      "hotkey": 105,
+      "physicalProperties": {
+        "hardness": 0.1,
+        "explosiveResistance": 0.2
+      },
+      "visualPattern": {
+        "pattern": "Flame",
+        "secondaryColor": [255, 255, 200, 200],
+        "patternScale": 1.8,
+        "patternIntensity": 1.0,
+        "animationSpeed": 0.8
+      },
+      "reactions": [
+        {
+          "reactant": "Water",
+          "product1": "EternalFire",
+          "type": "Growth",
+          "probability": 0.6,
+          "speed": 2.0,
+          "range": 3,
+          "consumeReactant": true,
+          "particleEffect": true
+        },
+        {
+          "reactant": "Wood",
+          "product1": "EternalFire",
+          "product2": "EternalFire",
+          "type": "Growth",
+          "probability": 0.15,
+          "speed": 0.8,
+          "range": 2,
+          "particleEffect": true
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "name": "Lightning",
+      "description": "Electrical energy that creates branching lightning lines and electrifies materials",
+      "behavior": "Fire",
+      "color": [255, 255, 200, 255],
+      "density": 0.01,
+      "hotkey": 116,
+      "physicalProperties": {
+        "hardness": 0.0,
+        "explosiveResistance": 0.0
+      },
+      "visualPattern": {
+        "pattern": "Lightning",
+        "patternScale": 2.0,
+        "patternIntensity": 1.0,
+        "animationSpeed": 2.0
+      },
+      "reactiveProperties": {
+        "conductivity": 1.0,
+        "volatility": 1.0
+      },
+      "reactions": [
+        {
+          "reactant": "Water",
+          "product1": "Water",
+          "type": "Electrify",
+          "probability": 0.9,
+          "speed": 20.0,
+          "range": 8,
+          "consumeReactant": false,
+          "particleEffect": true
+        },
+        {
+          "reactant": "Metal",
+          "product1": "Lightning",
+          "type": "Growth",
+          "probability": 0.95,
+          "speed": 25.0,
+          "range": 12,
+          "consumeReactant": false
+        },
+        {
+          "reactant": "Wood",
+          "product1": "Fire",
+          "type": "Contact",
+          "probability": 0.3,
+          "speed": 0.5,
+          "particleEffect": true
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "name": "EnchantedIce",
+      "description": "Magical ice that spreads and freezes surrounding materials",
+      "behavior": "Static",
+      "color": [180, 220, 255, 255],
+      "density": 0.92,
+      "hotkey": 102,
+      "physicalProperties": {
+        "hardness": 0.8,
+        "explosiveResistance": 0.4
+      },
+      "visualPattern": {
+        "pattern": "Crystal",
+        "secondaryColor": [220, 240, 255, 200],
+        "patternScale": 0.8,
+        "patternIntensity": 0.9,
+        "animationSpeed": 0.2
+      },
+      "reactions": [
+        {
+          "reactant": "Water",
+          "product1": "EnchantedIce",
+          "type": "Growth",
+          "probability": 0.003,
+          "speed": 0.008,
+          "range": 3,
+          "consumeReactant": true,
+          "particleEffect": true
+        },
+        {
+          "reactant": "Fire",
+          "product1": "Water",
+          "type": "Transform",
+          "probability": 0.4,
+          "speed": 1.0
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "name": "Rock",
+      "description": "Basic rock formation - harder than stone",
+      "behavior": "Static",
+      "color": [100, 90, 85, 255],
+      "density": 3.2,
+      "physicalProperties": {
+        "hardness": 2.5,
+        "explosiveResistance": 1.5
+      },
+      "visualPattern": {
+        "pattern": "Rock",
+        "patternScale": 1.2,
+        "patternIntensity": 0.8,
+        "animationSpeed": 0.0
+      }
+    },
+    {
+      "id": 40,
+      "name": "DenseRock",
+      "description": "Extremely hard rock formation - nearly indestructible",
+      "behavior": "Static", 
+      "color": [70, 60, 55, 255],
+      "density": 4.5,
+      "physicalProperties": {
+        "hardness": 4.0,
+        "explosiveResistance": 3.0
+      },
+      "visualPattern": {
+        "pattern": "Rock",
+        "patternScale": 0.6,
+        "patternIntensity": 1.0,
+        "animationSpeed": 0.0
+      }
+    },
+    {
+      "id": 41,
+      "name": "CursedRock",
+      "description": "Dark rock corrupted by void energy - spreads corruption",
+      "behavior": "Static",
+      "color": [40, 20, 60, 255],
+      "density": 3.8,
+      "physicalProperties": {
+        "hardness": 3.0,
+        "explosiveResistance": 2.0
+      },
+      "visualPattern": {
+        "pattern": "Rock",
+        "secondaryColor": [80, 40, 120, 180],
+        "patternScale": 1.0,
+        "patternIntensity": 0.9,
+        "animationSpeed": 0.1
+      },
+      "reactions": [
+        {
+          "reactant": "Water",
+          "product1": "ToxicGas",
+          "type": "Corrosive",
+          "probability": 0.1,
+          "speed": 0.3,
+          "particleEffect": true
+        },
+        {
+          "reactant": "Wood",
+          "product1": "CursedRock",
+          "type": "Growth",
+          "probability": 0.05,
+          "speed": 0.2,
+          "range": 2
+        }
+      ]
     }
   ]
 }

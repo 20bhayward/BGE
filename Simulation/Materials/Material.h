@@ -76,12 +76,12 @@ struct VisualProperties {
     float animationSpeed = 0.0f;          // Speed of pattern animation
 };
 
-struct ThermalProperties {
-    float meltingPoint = 1000.0f;    // Temperature to change to liquid
-    float boilingPoint = 2000.0f;    // Temperature to change to gas
-    float ignitionPoint = 500.0f;    // Temperature to start burning
-    float thermalConductivity = 1.0f; // How fast heat spreads
-    float heatCapacity = 1.0f;       // How much heat it can store
+struct ReactiveProperties {
+    float reactivity = 1.0f;         // How readily it reacts (0-2, 1=normal)
+    float acidity = 0.0f;            // Acid level (-1 to 1, 0=neutral, +1=acid, -1=base)
+    float volatility = 0.0f;         // How unstable/explosive (0-1)
+    float conductivity = 0.0f;       // Electrical conductivity for reactions
+    float growthRate = 0.0f;         // How fast it spreads/grows
 };
 
 struct PhysicalProperties {
@@ -89,17 +89,32 @@ struct PhysicalProperties {
     float viscosity = 0.0f;          // Flow resistance (liquids)
     float friction = 0.5f;           // Surface friction
     float corrosion = 0.0f;          // How much it corrodes other materials
-    float hardness = 1.0f;           // Resistance to displacement
+    float hardness = 1.0f;           // Resistance to destruction (0=fragile, 1=normal, 2=very hard)
+    float explosiveResistance = 0.5f; // Resistance to explosive damage (0=destroyed easily, 1=explosion-proof)
+};
+
+enum class ReactionType : uint8_t {
+    Contact,        // Immediate reaction on contact
+    Catalyst,       // Accelerates other reactions nearby
+    Dissolve,       // One material dissolves the other
+    Explosive,      // Creates explosion particles
+    Corrosive,      // Gradually eats away at materials
+    Transform,      // Changes material type over time
+    Growth,         // Spreads/grows when touching certain materials
+    Crystallize,    // Forms crystal patterns
+    Electrify       // Adds electrical effect without changing material
 };
 
 struct MaterialReaction {
     MaterialID reactant;             // What material this reacts with
     MaterialID product1;             // First product
     MaterialID product2 = MATERIAL_EMPTY; // Optional second product
+    ReactionType type = ReactionType::Contact; // Type of reaction
     float probability = 1.0f;        // Chance of reaction (0-1)
-    float energyChange = 0.0f;       // Heat generated/consumed
-    bool requiresHeat = false;       // Needs minimum temperature
-    float minTemperature = 0.0f;     // Minimum temp for reaction
+    float speed = 1.0f;              // How fast the reaction proceeds
+    int range = 1;                   // How far the reaction can spread (in pixels)
+    bool consumeReactant = true;     // Whether the reactant is consumed
+    bool particleEffect = false;     // Create particle effects
 };
 
 class Material {
@@ -120,7 +135,7 @@ public:
     
     // Physics properties
     const PhysicalProperties& GetPhysicalProps() const { return m_physicalProps; }
-    const ThermalProperties& GetThermalProps() const { return m_thermalProps; }
+    const ReactiveProperties& GetReactiveProps() const { return m_reactiveProps; }
     const OpticalProperties& GetOpticalProps() const { return m_opticalProps; }
     const VisualProperties& GetVisualProps() const { return m_visualProps; }
     
@@ -132,7 +147,11 @@ public:
     Material& SetState(MaterialState state) { m_state = state; return *this; }
     Material& SetBehavior(MaterialBehavior behavior) { m_behavior = behavior; return *this; }
     Material& SetDensity(float density) { m_physicalProps.density = density; return *this; }
-    Material& SetMeltingPoint(float temp) { m_thermalProps.meltingPoint = temp; return *this; }
+    Material& SetReactivity(float reactivity) { m_reactiveProps.reactivity = reactivity; return *this; }
+    Material& SetAcidity(float acidity) { m_reactiveProps.acidity = acidity; return *this; }
+    Material& SetVolatility(float volatility) { m_reactiveProps.volatility = volatility; return *this; }
+    Material& SetHardness(float hardness) { m_physicalProps.hardness = hardness; return *this; }
+    Material& SetExplosiveResistance(float resistance) { m_physicalProps.explosiveResistance = resistance; return *this; }
     Material& SetEmission(float emission) { m_opticalProps.emission = emission; return *this; }
     Material& SetVisualPattern(VisualPattern pattern) { m_visualProps.pattern = pattern; return *this; }
     Material& SetSecondaryColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) { 
@@ -156,7 +175,7 @@ private:
     uint32_t m_color = 0xFF000000; // RGBA
     
     PhysicalProperties m_physicalProps;
-    ThermalProperties m_thermalProps;
+    ReactiveProperties m_reactiveProps;
     OpticalProperties m_opticalProps;
     VisualProperties m_visualProps;
     
