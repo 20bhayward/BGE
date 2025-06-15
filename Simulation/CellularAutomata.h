@@ -32,6 +32,7 @@ public:
     
     // Fire type specific behaviors
     void ProcessNormalFire(int x, int y, uint8_t fireLife);
+    void ProcessLightning(int x, int y);
     
     // Advanced liquid behaviors
     void ProcessWater(int x, int y, float viscosity, float density);
@@ -98,6 +99,10 @@ public:
     // Reaction processing
     void ProcessReactions(int x, int y, float deltaTime);
     bool TryReaction(int x, int y, const MaterialReaction& reaction, float deltaTime);
+    
+    // Explosion system
+    void CreateExplosion(int centerX, int centerY, float power, float radius);
+    bool CanDestroyMaterial(MaterialID material, float explosivePower) const;
     
     // State transitions (melting, boiling, etc.)
     void ProcessStateTransitions(int x, int y);

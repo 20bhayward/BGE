@@ -71,12 +71,35 @@ add_library(BGECore STATIC
     Input/MaterialPalette.cpp
     Input/MaterialTools.h
     Input/MaterialTools.cpp
+    Input/CategorizedMaterialPalette.h
+    Input/CategorizedMaterialPalette.cpp
     
     # UI System
     UI/UISystem.h
     UI/UISystem.cpp
     UI/MaterialEditorUI.h
     UI/MaterialEditorUI.cpp
+    UI/Panel.h
+    UI/PanelManager.h
+    UI/LayoutInfo.h
+    UI/TabbedPanel.h
+    UI/TabbedPanel.cpp
+    UI/UnityLayoutManager.h
+    UI/UnityLayoutManager.cpp
+    UI/AssetBrowserPanel.h
+    UI/AssetBrowserPanel.cpp
+    UI/SceneViewPanel.h
+    UI/SceneViewPanel.cpp
+    UI/GameViewportPanel.h
+    UI/GameViewportPanel.cpp
+    UI/InspectorPanel.h
+    UI/InspectorPanel.cpp
+    UI/HierarchyPanel.h
+    UI/HierarchyPanel.cpp
+    UI/MaterialPalettePanel.h
+    UI/MaterialPalettePanel.cpp
+    UI/DebugToolbarPanel.h
+    UI/DebugToolbarPanel.cpp
     
     # Platform
     Platform/Platform.h

@@ -68,22 +68,34 @@ void ParticleSystem::Emit(const ParticleProperties& properties) {
 void ParticleSystem::Update(float deltaTime) {
     for (size_t i = 0; i < m_poolSize; ++i) {
         if (m_particlePool[i].isActive) {
-            Particle& p = m_particlePool[i];
-
-            // Apply gravity
-            p.velocity.y += DEFAULT_GRAVITY * deltaTime;
-
-            // Update position
-            p.position += p.velocity * deltaTime;
-
-            // Decrease lifetime
-            p.lifetime -= deltaTime;
-
-            // Deactivate if lifetime is over
-            if (p.lifetime <= 0.0f) {
-                p.isActive = false;
-            }
+            UpdatePhysics(m_particlePool[i], deltaTime);
         }
+    }
+}
+
+void ParticleSystem::UpdatePhysics(Particle& particle, float deltaTime) {
+    // Apply gravity
+    particle.velocity.y += m_gravity * deltaTime;
+
+    // Apply air resistance
+    particle.velocity.x *= AIR_RESISTANCE;
+    particle.velocity.y *= AIR_RESISTANCE;
+
+    // Update position
+    particle.position += particle.velocity * deltaTime;
+
+    // Decrease lifetime
+    particle.lifetime -= deltaTime;
+
+    // Fade color based on lifetime (visual enhancement)
+    if (particle.lifetime < 0.3f) {
+        float fadeAlpha = particle.lifetime / 0.3f;
+        particle.color = particle.color * fadeAlpha;
+    }
+
+    // Deactivate if lifetime is over
+    if (particle.lifetime <= 0.0f) {
+        particle.isActive = false;
     }
 }
 
@@ -111,20 +123,85 @@ void ParticleSystem::CreateSparks(Vector2 position, int count) {
     }
 }
 
-void ParticleSystem::Render(Renderer& renderer) { // Accept Renderer reference
-    // BGE_LOG_TRACE("ParticleSystem", "Render called.");
+void ParticleSystem::Render(Renderer& renderer) {
+    // Batch render all active particles for better performance
+    size_t activeCount = 0;
     for (size_t i = 0; i < m_poolSize; ++i) {
         if (m_particlePool[i].isActive) {
             const Particle& p = m_particlePool[i];
-            // Call a new method on Renderer to draw a small quad or pixel
-            // This method needs to be added to Renderer.
             renderer.DrawPrimitivePixel(static_cast<int>(p.position.x),
                                         static_cast<int>(p.position.y),
                                         p.color);
-            // Or for a 2x2 quad:
-            // renderer.DrawPrimitiveQuad(p.position, Vector2(2.0f, 2.0f), p.color);
+            activeCount++;
         }
     }
+    
+    // Log performance metrics periodically
+    static int frameCounter = 0;
+    if (++frameCounter % 300 == 0) { // Every 5 seconds at 60 FPS
+        BGE_LOG_DEBUG("ParticleSystem", "Rendered " + std::to_string(activeCount) + 
+                      "/" + std::to_string(m_poolSize) + " particles");
+    }
+}
+
+void ParticleSystem::CreateExplosion(Vector2 position, float intensity, int particleCount) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> angle_dist(0.0f, 2.0f * 3.14159f); // Full circle
+    std::uniform_real_distribution<> speed_dist(intensity * 0.5f, intensity * 1.5f);
+    std::uniform_real_distribution<> life_dist(0.8f, 2.0f);
+    
+    for (int i = 0; i < particleCount; ++i) {
+        float angle = static_cast<float>(angle_dist(gen));
+        float speed = static_cast<float>(speed_dist(gen));
+        
+        ParticleProperties props;
+        props.position = position;
+        props.velocity = Vector2(std::cos(angle) * speed, std::sin(angle) * speed);
+        props.lifetime = static_cast<float>(life_dist(gen));
+        
+        // Hot explosion colors (red/orange/yellow)
+        float colorChoice = static_cast<float>(std::uniform_real_distribution<>(0.0, 1.0)(gen));
+        if (colorChoice < 0.33f) {
+            props.color = Vector3(1.0f, 0.2f, 0.0f); // Red
+        } else if (colorChoice < 0.66f) {
+            props.color = Vector3(1.0f, 0.6f, 0.0f); // Orange
+        } else {
+            props.color = Vector3(1.0f, 1.0f, 0.2f); // Yellow
+        }
+        
+        Emit(props);
+    }
+}
+
+void ParticleSystem::CreateTrail(Vector2 start, Vector2 end, const Vector3& color, int segments) {
+    if (segments <= 0) return;
+    
+    Vector2 direction = end - start;
+    float segmentLength = 1.0f / static_cast<float>(segments);
+    
+    for (int i = 0; i < segments; ++i) {
+        float t = static_cast<float>(i) * segmentLength;
+        Vector2 position = start + direction * t;
+        
+        ParticleProperties props;
+        props.position = position;
+        props.velocity = Vector2(0.0f, 0.0f); // Stationary trail particles
+        props.color = color;
+        props.lifetime = 0.5f + (1.0f - t) * 0.5f; // Longer lifetime at start
+        
+        Emit(props);
+    }
+}
+
+size_t ParticleSystem::GetActiveParticleCount() const {
+    size_t count = 0;
+    for (const auto& particle : m_particlePool) {
+        if (particle.isActive) {
+            count++;
+        }
+    }
+    return count;
 }
 
 } // namespace BGE

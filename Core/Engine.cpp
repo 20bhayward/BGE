@@ -325,6 +325,13 @@ void Engine::Update(float deltaTime) {
         ps->Update(deltaTime);
     }
 
+    // Update PostProcessor (for time-based effects like screen shake)
+    if (auto renderer = serviceLocator.GetService<Renderer>()) {
+        if (auto postProcessor = renderer->GetPostProcessor()) {
+            postProcessor->Update(deltaTime);
+        }
+    }
+
     // Update Asset Manager (for hot-reloading)
     if (auto assets = serviceLocator.GetService<AssetManager>()) {
         assets->Update();

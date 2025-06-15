@@ -13,13 +13,32 @@ class PhysicsWorld;
 class ThreadPool;
 class CellularAutomata;
 
+// Effect layers for enhanced visual realism
+enum class EffectLayer : uint8_t {
+    None = 0,
+    Burning = 1,        // Orange/red glow, flickering
+    Freezing = 2,       // Blue tint, ice crystals
+    Electrified = 3,    // Blue-white sparks, lightning
+    Bloodied = 4,       // Red stains
+    Blackened = 5,      // Soot/explosion damage
+    Corroding = 6,      // Green acid effects
+    Crystallizing = 7,  // Crystal formation patterns
+    Glowing = 8         // General luminescence
+};
+
 struct Cell {
     MaterialID material = MATERIAL_EMPTY;
-    float temperature = 20.0f;  // Celsius
+    float temperature = 20.0f;  // Celsius - still used for some effects
     uint8_t velocity_x = 0;     // Velocity for liquids/gases
     uint8_t velocity_y = 0;
     uint8_t life = 0;           // For temporary materials (fire, etc.)
     uint8_t flags = 0;          // Bit flags for various states
+    
+    // New effect layer system
+    EffectLayer effectLayer = EffectLayer::None;
+    uint8_t effectIntensity = 0;    // 0-255 intensity of effect
+    uint8_t effectTimer = 0;        // Countdown for temporary effects
+    uint8_t effectData = 0;         // Extra data for complex effects
 };
 
 class SimulationWorld {
@@ -41,6 +60,12 @@ public:
     const Cell& GetCell(int x, int y) const;
     void SetMaterial(int x, int y, MaterialID material);
     void SetTemperature(int x, int y, float temperature);
+    
+    // Effect layer system
+    void SetEffect(int x, int y, EffectLayer effect, uint8_t intensity, uint8_t duration = 255);
+    void ClearEffect(int x, int y);
+    EffectLayer GetEffect(int x, int y) const;
+    uint8_t GetEffectIntensity(int x, int y) const;
     
     // Next grid access (for double buffering)
     void SetNextMaterial(int x, int y, MaterialID material);
@@ -87,6 +112,7 @@ private:
     void UpdateCellularAutomata(float deltaTime);
     void UpdateTemperature(float deltaTime);
     void UpdateReactions(float deltaTime);
+    void UpdateEffects(float deltaTime);
     void UpdatePhysics(float deltaTime);
     void UpdatePixelBuffer();
     
@@ -103,6 +129,7 @@ private:
     void SwapCells(int x1, int y1, int x2, int y2);
     uint32_t MaterialToColor(MaterialID material, float temperature, int x, int y) const;
     uint32_t ApplyVisualPattern(uint32_t baseColor, const VisualProperties& props, int x, int y) const;
+    uint32_t BlendEffectLayer(uint32_t baseColor, EffectLayer effect, uint8_t intensity) const;
     
     // Threading support
     void UpdateChunkParallel(int chunkIndex, float deltaTime);
@@ -134,7 +161,7 @@ private:
     
     // Settings
     bool m_multithreading = true;
-    float m_simulationSpeed = 1.0f;
+    float m_simulationSpeed = 0.5f;
     uint32_t m_maxThreads = 0; // 0 = auto-detect
     
     // Simulation control

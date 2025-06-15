@@ -83,6 +83,9 @@ void SimulationWorld::Update(float deltaTime) {
         // Update reactions
         UpdateReactions(deltaTime);
         
+        // Update effects
+        UpdateEffects(deltaTime);
+        
         // Count water in next grid after all updates
         uint32_t waterAfterAll = 0;
         for (const auto& cell : m_nextGrid) {
@@ -188,6 +191,32 @@ void SimulationWorld::SetTemperature(int x, int y, float temperature) {
     
     int index = CoordToIndex(x, y, m_width);
     m_currentGrid[index].temperature = temperature;
+}
+
+void SimulationWorld::SetEffect(int x, int y, EffectLayer effect, uint8_t intensity, uint8_t duration) {
+    if (!IsValidPosition(x, y)) return;
+    
+    int index = CoordToIndex(x, y, m_width);
+    m_currentGrid[index].effectLayer = effect;
+    m_currentGrid[index].effectIntensity = intensity;
+    m_currentGrid[index].effectTimer = duration;
+}
+
+void SimulationWorld::ClearEffect(int x, int y) {
+    if (!IsValidPosition(x, y)) return;
+    
+    int index = CoordToIndex(x, y, m_width);
+    m_currentGrid[index].effectLayer = EffectLayer::None;
+    m_currentGrid[index].effectIntensity = 0;
+    m_currentGrid[index].effectTimer = 0;
+}
+
+EffectLayer SimulationWorld::GetEffect(int x, int y) const {
+    return GetCell(x, y).effectLayer;
+}
+
+uint8_t SimulationWorld::GetEffectIntensity(int x, int y) const {
+    return GetCell(x, y).effectIntensity;
 }
 
 MaterialID SimulationWorld::GetMaterial(int x, int y) const {
@@ -366,6 +395,35 @@ void SimulationWorld::UpdateReactions(float deltaTime) {
     }
 }
 
+void SimulationWorld::UpdateEffects(float deltaTime) {
+    // Update effect timers and fade temporary effects
+    for (uint32_t y = 0; y < m_height; ++y) {
+        for (uint32_t x = 0; x < m_width; ++x) {
+            Cell& cell = m_currentGrid[CoordToIndex(x, y, m_width)];
+            
+            if (cell.effectLayer != EffectLayer::None && cell.effectTimer > 0) {
+                // Decrease timer
+                if (cell.effectTimer > static_cast<uint8_t>(deltaTime * 60)) {
+                    cell.effectTimer -= static_cast<uint8_t>(deltaTime * 60);
+                } else {
+                    cell.effectTimer = 0;
+                }
+                
+                // Fade intensity based on remaining time
+                if (cell.effectTimer == 0) {
+                    // Effect expired - clear it
+                    cell.effectLayer = EffectLayer::None;
+                    cell.effectIntensity = 0;
+                } else {
+                    // Fade effect over time
+                    float fadeRatio = static_cast<float>(cell.effectTimer) / 255.0f;
+                    cell.effectIntensity = static_cast<uint8_t>(cell.effectIntensity * fadeRatio);
+                }
+            }
+        }
+    }
+}
+
 void SimulationWorld::UpdatePixelBuffer() {
     // Convert world state to pixel buffer
     static bool debugPrinted = false;
@@ -376,8 +434,13 @@ void SimulationWorld::UpdatePixelBuffer() {
             const Cell& cell = GetCell(x, y);
             uint32_t color;
             
-            // Get the actual material color
+            // Get the actual material color with effect layers
             color = MaterialToColor(cell.material, cell.temperature, x, y);
+            
+            // Apply effect layer blending
+            if (cell.effectLayer != EffectLayer::None && cell.effectIntensity > 0) {
+                color = BlendEffectLayer(color, cell.effectLayer, cell.effectIntensity);
+            }
             
             if (cell.material != MATERIAL_EMPTY) {
                 nonEmptyCount++;
@@ -764,6 +827,100 @@ uint32_t SimulationWorld::ApplyVisualPattern(uint32_t baseColor, const VisualPro
         default:
             return baseColor;
     }
+}
+
+uint32_t SimulationWorld::BlendEffectLayer(uint32_t baseColor, EffectLayer effect, uint8_t intensity) const {
+    if (intensity == 0) return baseColor;
+    
+    // Extract RGBA components from base color
+    uint8_t baseR = (baseColor >> 0) & 0xFF;
+    uint8_t baseG = (baseColor >> 8) & 0xFF;
+    uint8_t baseB = (baseColor >> 16) & 0xFF;
+    uint8_t baseA = (baseColor >> 24) & 0xFF;
+    
+    // Effect colors and blend modes
+    uint8_t effectR, effectG, effectB;
+    float blend = intensity / 255.0f;
+    
+    switch (effect) {
+        case EffectLayer::Burning: {
+            // Orange-red flickering glow
+            effectR = 255;
+            effectG = static_cast<uint8_t>(140 + (rand() % 60)); // Flicker between orange and red
+            effectB = 0;
+            break;
+        }
+        
+        case EffectLayer::Freezing: {
+            // Blue-white ice crystals
+            effectR = static_cast<uint8_t>(200 + (rand() % 55));
+            effectG = static_cast<uint8_t>(220 + (rand() % 35));
+            effectB = 255;
+            break;
+        }
+        
+        case EffectLayer::Electrified: {
+            // Blue-white electric sparks
+            uint8_t spark = static_cast<uint8_t>(200 + (rand() % 56));
+            effectR = spark;
+            effectG = spark;
+            effectB = 255;
+            break;
+        }
+        
+        case EffectLayer::Bloodied: {
+            // Dark red blood stains
+            effectR = static_cast<uint8_t>(150 + (rand() % 50));
+            effectG = 20;
+            effectB = 20;
+            break;
+        }
+        
+        case EffectLayer::Blackened: {
+            // Soot and explosion damage
+            uint8_t soot = static_cast<uint8_t>(30 + (rand() % 40));
+            effectR = soot;
+            effectG = soot;
+            effectB = soot;
+            blend *= 0.8f; // Darken existing color
+            break;
+        }
+        
+        case EffectLayer::Corroding: {
+            // Green acid corrosion
+            effectR = 50;
+            effectG = static_cast<uint8_t>(200 + (rand() % 55));
+            effectB = 50;
+            break;
+        }
+        
+        case EffectLayer::Crystallizing: {
+            // Prismatic crystal formation
+            float crystal = sin(static_cast<float>(rand() % 100) * 0.1f) * 0.5f + 0.5f;
+            effectR = static_cast<uint8_t>(150 + crystal * 105);
+            effectG = static_cast<uint8_t>(200 + crystal * 55);
+            effectB = static_cast<uint8_t>(255);
+            break;
+        }
+        
+        case EffectLayer::Glowing: {
+            // Bright luminescence
+            effectR = 255;
+            effectG = 255;
+            effectB = static_cast<uint8_t>(200 + (rand() % 55));
+            break;
+        }
+        
+        default:
+            return baseColor;
+    }
+    
+    // Blend effect with base color
+    uint8_t finalR = static_cast<uint8_t>(baseR * (1.0f - blend) + effectR * blend);
+    uint8_t finalG = static_cast<uint8_t>(baseG * (1.0f - blend) + effectG * blend);
+    uint8_t finalB = static_cast<uint8_t>(baseB * (1.0f - blend) + effectB * blend);
+    
+    return finalR | (finalG << 8) | (finalB << 16) | (baseA << 24);
 }
 
 } // namespace BGE

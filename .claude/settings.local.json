@@ -21,7 +21,9 @@
       "Bash(mv:*)",
       "Bash(ln:*)",
       "Bash(cp:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(g++:*)",
+      "Bash(msbuild:*)"
     ],
     "deny": []
   }

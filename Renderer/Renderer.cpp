@@ -1,8 +1,10 @@
 #include "Renderer.h"
 #include "PixelCamera.h"
-#include "ParticleSystem.h" // Keep for ParticleSystem::Render interface potentially
+#include "ParticleSystem.h"
+#include "PostProcessor.h"
 #include "../Core/Logger.h"
 #include "../Core/ServiceLocator.h" // For ServiceLocator
+#include "../Core/Math/Vector2.h"
 #include "../Simulation/SimulationWorld.h"
 #include <GLFW/glfw3.h>
 
@@ -38,12 +40,27 @@ bool Renderer::Initialize(Window* window) {
         BGE_LOG_ERROR("Renderer", "Failed to initialize PixelCamera.");
     }
 
+    // Initialize PostProcessor with simulation world dimensions (512x512)
+    // The PostProcessor works on the simulation pixel data, not the window size
+    m_postProcessor = std::make_unique<PostProcessor>();
+    if (m_postProcessor) {
+        if (m_postProcessor->Initialize(512, 512)) {
+            BGE_LOG_INFO("Renderer", "PostProcessor initialized for 512x512 simulation world");
+        } else {
+            BGE_LOG_ERROR("Renderer", "Failed to initialize PostProcessor");
+        }
+    }
+
     BGE_LOG_INFO("Renderer", "Renderer initialized successfully.");
     return true;
 }
 
 void Renderer::Shutdown() {
     BGE_LOG_INFO("Renderer", "Renderer shutdown.");
+    if (m_postProcessor) {
+        m_postProcessor->Shutdown();
+        m_postProcessor.reset();
+    }
     m_pixelCamera.reset();
 }
 
@@ -78,9 +95,22 @@ void Renderer::BeginFrame() {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     
+    // Apply screen shake offset if available
+    Vector2 shakeOffset = {0.0f, 0.0f};
+    if (m_postProcessor && m_postProcessor->IsEffectEnabled(PostProcessEffect::ScreenShake)) {
+        shakeOffset = m_postProcessor->GetShakeOffset();
+    }
+    
     // Use simulation world coordinates (512x512) with Y=0 at bottom (standard OpenGL)
-    glOrtho(0, 512, 0, 512, -1, 1); // Bottom-left origin, standard OpenGL orientation
-    BGE_LOG_TRACE("Renderer", "Projection matrix set to orthographic (0,0)-(512,512)");
+    // Apply screen shake by adjusting the orthographic bounds
+    float left = 0.0f + shakeOffset.x;
+    float right = 512.0f + shakeOffset.x;
+    float bottom = 0.0f + shakeOffset.y;
+    float top = 512.0f + shakeOffset.y;
+    
+    glOrtho(left, right, bottom, top, -1, 1);
+    BGE_LOG_TRACE("Renderer", "Projection matrix set to orthographic with shake offset (" + 
+                  std::to_string(shakeOffset.x) + "," + std::to_string(shakeOffset.y) + ")");
     
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -135,13 +165,22 @@ void Renderer::RenderWorld(class SimulationWorld* world) {
     if (!world) return;
     
     // Get the pre-rendered pixel data from the simulation world
-    const uint8_t* pixelData = world->GetPixelData();
+    const uint8_t* originalPixelData = world->GetPixelData();
     uint32_t width = world->GetWidth();
     uint32_t height = world->GetHeight();
     
-    if (!pixelData) {
+    if (!originalPixelData) {
         BGE_LOG_ERROR("Renderer", "No pixel data available from SimulationWorld");
         return;
+    }
+    
+    // Create a working copy for post-processing
+    std::vector<uint8_t> workingPixelData(originalPixelData, originalPixelData + (width * height * 4));
+    uint8_t* pixelData = workingPixelData.data();
+    
+    // Apply post-processing effects
+    if (m_postProcessor) {
+        m_postProcessor->ProcessFrame(pixelData, width, height);
     }
     
     // Debug: Log world dimensions and check for non-empty pixels

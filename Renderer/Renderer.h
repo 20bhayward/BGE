@@ -7,6 +7,7 @@
 
 #include "PixelCamera.h" // Added include for PixelCamera
 #include "ParticleSystem.h" // Added include for ParticleSystem
+#include "PostProcessor.h" // Added include for PostProcessor
 
 // Forward declarations
 namespace BGE {
@@ -44,11 +45,13 @@ public:
     void DeleteTexture(uint32_t textureId);
 
     PixelCamera* GetPixelCamera() const { return m_pixelCamera.get(); }
+    PostProcessor* GetPostProcessor() const { return m_postProcessor.get(); }
     Window* GetWindow() const { return m_window; }
 
 private:
     Window* m_window = nullptr;
     std::unique_ptr<PixelCamera> m_pixelCamera;
+    std::unique_ptr<PostProcessor> m_postProcessor;
     uint32_t m_nextTextureId = 1; // Simple way to generate unique IDs for placeholder
 
     // Simulation viewport settings

@@ -37,6 +37,12 @@ public:
         BGE_LOG_INFO("InteractiveEditor", "  B: Brush tool");
         BGE_LOG_INFO("InteractiveEditor", "  E: Eraser tool");
         BGE_LOG_INFO("InteractiveEditor", "  I: Sample tool");
+        BGE_LOG_INFO("InteractiveEditor", "Post-Processing Effects:");
+        BGE_LOG_INFO("InteractiveEditor", "  F: Toggle Bloom effect");
+        BGE_LOG_INFO("InteractiveEditor", "  G: Toggle Color grading");
+        BGE_LOG_INFO("InteractiveEditor", "  H: Toggle Scanlines (retro effect)");
+        BGE_LOG_INFO("InteractiveEditor", "  X: Trigger screen shake");
+        BGE_LOG_INFO("InteractiveEditor", "  Z: Create explosion (particles + shake)");
         BGE_LOG_INFO("InteractiveEditor", "Material Palette:");
         BGE_LOG_INFO("InteractiveEditor", "  Sand, Water, Fire, Wood, Stone, Oil, Steam, Natural Gas,");
         BGE_LOG_INFO("InteractiveEditor", "  Thick Gas, Smoke, Poison Gas, Ash");
@@ -153,6 +159,7 @@ public:
     }
     
     void Shutdown() override {
+        m_editorUI.Shutdown();
         m_materialTools.Shutdown();
     }
     
@@ -234,6 +241,83 @@ public:
                 } else {
                     if (!inputManager) BGE_LOG_ERROR("InteractiveEditorApp", "InputManager service not found for sparks.");
                     if (!particleSystem) BGE_LOG_ERROR("InteractiveEditorApp", "ParticleSystem service not found for sparks.");
+                }
+                break;
+            }
+            // Post-processing effect controls
+            case 'F': case 'f': // Toggle bloom effect
+            {
+                auto renderer = Services::GetRenderer();
+                if (renderer && renderer->GetPostProcessor()) {
+                    auto* postProcessor = renderer->GetPostProcessor();
+                    if (postProcessor->IsEffectEnabled(PostProcessEffect::Bloom)) {
+                        postProcessor->DisableEffect(PostProcessEffect::Bloom);
+                        BGE_LOG_INFO("InteractiveEditor", "Bloom effect DISABLED");
+                    } else {
+                        postProcessor->EnableEffect(PostProcessEffect::Bloom);
+                        BGE_LOG_INFO("InteractiveEditor", "Bloom effect ENABLED");
+                    }
+                }
+                break;
+            }
+            case 'G': case 'g': // Toggle color grading
+            {
+                auto renderer = Services::GetRenderer();
+                if (renderer && renderer->GetPostProcessor()) {
+                    auto* postProcessor = renderer->GetPostProcessor();
+                    if (postProcessor->IsEffectEnabled(PostProcessEffect::ColorGrading)) {
+                        postProcessor->DisableEffect(PostProcessEffect::ColorGrading);
+                        BGE_LOG_INFO("InteractiveEditor", "Color grading DISABLED");
+                    } else {
+                        postProcessor->EnableEffect(PostProcessEffect::ColorGrading);
+                        BGE_LOG_INFO("InteractiveEditor", "Color grading ENABLED");
+                    }
+                }
+                break;
+            }
+            case 'H': case 'h': // Toggle scanlines
+            {
+                auto renderer = Services::GetRenderer();
+                if (renderer && renderer->GetPostProcessor()) {
+                    auto* postProcessor = renderer->GetPostProcessor();
+                    if (postProcessor->IsEffectEnabled(PostProcessEffect::Scanlines)) {
+                        postProcessor->DisableEffect(PostProcessEffect::Scanlines);
+                        BGE_LOG_INFO("InteractiveEditor", "Scanlines DISABLED");
+                    } else {
+                        postProcessor->EnableEffect(PostProcessEffect::Scanlines);
+                        BGE_LOG_INFO("InteractiveEditor", "Scanlines ENABLED");
+                    }
+                }
+                break;
+            }
+            case 'X': case 'x': // Trigger screen shake
+            {
+                auto renderer = Services::GetRenderer();
+                if (renderer && renderer->GetPostProcessor()) {
+                    renderer->GetPostProcessor()->TriggerScreenShake(5.0f, 1.0f);
+                    BGE_LOG_INFO("InteractiveEditor", "Screen shake triggered!");
+                }
+                break;
+            }
+            case 'Z': case 'z': // Create explosion effect (particles + screen shake)
+            {
+                auto inputManager = Services::GetInput();
+                auto particleSystem = Services::GetParticles();
+                auto renderer = Services::GetRenderer();
+                
+                if (inputManager && particleSystem && renderer) {
+                    float mouseX = 0.0f, mouseY = 0.0f;
+                    inputManager->GetMousePosition(mouseX, mouseY);
+                    
+                    // Create explosion particles
+                    particleSystem->CreateExplosion(Vector2(mouseX, mouseY), 100.0f, 50);
+                    
+                    // Trigger screen shake
+                    if (renderer->GetPostProcessor()) {
+                        renderer->GetPostProcessor()->TriggerScreenShake(8.0f, 2.0f);
+                    }
+                    
+                    BGE_LOG_INFO("InteractiveEditor", "EXPLOSION at mouse position!");
                 }
                 break;
             }
