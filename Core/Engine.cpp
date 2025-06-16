@@ -116,6 +116,13 @@ void Engine::RegisterCoreServices() {
     
     BGE_LOG_INFO("Engine", "Registering core services...");
     
+    // Register EventBus (singleton as shared_ptr)
+    auto eventBus = std::shared_ptr<EventBus>(&EventBus::Instance(), [](EventBus*) {
+        // Custom deleter that does nothing since it's a singleton
+    });
+    serviceLocator.RegisterService<EventBus>(eventBus);
+    BGE_LOG_INFO("Engine", "EventBus service registered");
+    
     // Initialize and register renderer
     auto renderer = std::make_shared<Renderer>();
     if (renderer->Initialize(m_window.get())) {
@@ -356,11 +363,13 @@ void Engine::Render() {
     renderer->BeginFrame();
     BGE_LOG_TRACE("Engine", "BeginFrame() completed");
     
-    // Render simulation world
-    if (world) {
+    // Render simulation world (unless application handles it)
+    if (world && (!m_application || !m_application->HandlesWorldRendering())) {
         BGE_LOG_TRACE("Engine", "Calling RenderWorld() with world data");
         renderer->RenderWorld(world.get());
         BGE_LOG_TRACE("Engine", "RenderWorld() completed");
+    } else if (m_application && m_application->HandlesWorldRendering()) {
+        BGE_LOG_TRACE("Engine", "Skipping world rendering - application handles it");
     } else {
         BGE_LOG_ERROR("Engine", "No simulation world available for rendering!");
     }

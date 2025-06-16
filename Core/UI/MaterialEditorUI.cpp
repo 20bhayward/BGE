@@ -9,15 +9,16 @@
 #include "../../Renderer/ParticleSystem.h"
 #include "../../Renderer/PixelCamera.h"
 #include "AssetBrowserPanel.h"
-#include "SceneViewPanel.h"
 #include "GameViewportPanel.h"
 #include "InspectorPanel.h"
 #include "HierarchyPanel.h"
 #include "MaterialPalettePanel.h"
-#include "DebugToolbarPanel.h"
+#include "DockingSystem.h"
+#include "DockNode.h"
 
 #include <imgui.h>
 #include <iostream>
+#include <algorithm>
 
 namespace BGE {
 
@@ -27,36 +28,46 @@ void MaterialEditorUI::Initialize(MaterialTools* tools, SimulationWorld* world) 
     m_materialTools = tools;
     m_world = world;
     
-    // Initialize Unity-style layout manager
-    m_layoutManager.Initialize();
+    // Get the UI system to register panels with docking support
+    auto uiSystem = Services::GetUI();
+    if (!uiSystem) {
+        std::cerr << "Failed to get UISystem service" << std::endl;
+        return;
+    }
     
-    // Create panel instances
+    auto& docking = uiSystem->GetDockingSystem();
+    
+    // Create panels manually and add them to specific dock areas
     m_hierarchyPanel = std::make_shared<HierarchyPanel>("Hierarchy", m_world);
-    m_assetBrowserPanel = std::make_shared<AssetBrowserPanel>("Asset Browser", m_materialTools);
-    m_debugToolbarPanel = std::make_shared<DebugToolbarPanel>("Debug Toolbar", m_world, m_materialTools);
-    m_gameViewportPanel = std::make_shared<GameViewportPanel>("Game", m_world, m_materialTools);
-    m_inspectorPanel = std::make_shared<InspectorPanel>("Inspector", m_materialTools, m_world);
-    m_materialPalettePanel = std::make_shared<MaterialPalettePanel>("Materials", m_materialTools);
-    
-    // Initialize panels
     m_hierarchyPanel->Initialize();
+    docking.AddPanel(m_hierarchyPanel, "left");
+    
+    m_assetBrowserPanel = std::make_shared<AssetBrowserPanel>("Asset Browser");
     m_assetBrowserPanel->Initialize();
-    m_debugToolbarPanel->Initialize();
+    docking.AddPanel(m_assetBrowserPanel, "bottom");
+    
+    m_gameViewportPanel = std::make_shared<GameViewportPanel>("Game", m_world, m_materialTools);
     m_gameViewportPanel->Initialize();
+    docking.AddPanel(m_gameViewportPanel, "game");
+    
+    m_inspectorPanel = std::make_shared<InspectorPanel>("Inspector");
     m_inspectorPanel->Initialize();
+    docking.AddPanel(m_inspectorPanel, "inspector");
+    
+    m_materialPalettePanel = std::make_shared<MaterialPalettePanel>("Materials", m_materialTools);
     m_materialPalettePanel->Initialize();
+    docking.AddPanel(m_materialPalettePanel, "bottom");
     
     // Set up default Unity-style layout
     SetupDefaultLayout();
     
-    std::cout << "MaterialEditorUI initialized with Unity-style layout system" << std::endl;
+    std::cout << "MaterialEditorUI initialized with Unity-style docking layout!" << std::endl;
 }
 
 void MaterialEditorUI::Shutdown() {
     // Shutdown panels
     if (m_hierarchyPanel) m_hierarchyPanel->Shutdown();
     if (m_assetBrowserPanel) m_assetBrowserPanel->Shutdown();
-    if (m_debugToolbarPanel) m_debugToolbarPanel->Shutdown();
     if (m_gameViewportPanel) m_gameViewportPanel->Shutdown();
     if (m_inspectorPanel) m_inspectorPanel->Shutdown();
     if (m_materialPalettePanel) m_materialPalettePanel->Shutdown();
@@ -69,13 +80,8 @@ void MaterialEditorUI::Render() {
     
     RenderMainMenuBar();
     
-    // Always render Unity-style layout (don't depend on docking system)
-    static bool debugPrinted = false;
-    if (!debugPrinted) {
-        std::cout << "MaterialEditorUI::Render() - About to render layout manager" << std::endl;
-        debugPrinted = true;
-    }
-    m_layoutManager.Render();
+    // The UISystem handles all panel rendering through its docking system
+    // We don't need to manually render panels anymore
     
     if (m_showDemoWindow) {
         ImGui::ShowDemoWindow(&m_showDemoWindow);
@@ -112,25 +118,22 @@ void MaterialEditorUI::RenderMainMenuBar() {
             ImGui::EndMenu();
         }
         
-        if (ImGui::BeginMenu("View")) {
+        if (ImGui::BeginMenu("Window")) {
             // Panel visibility toggles
             if (ImGui::MenuItem("Hierarchy", nullptr, m_hierarchyPanel->IsVisible())) {
                 m_hierarchyPanel->ToggleVisible();
             }
-            if (ImGui::MenuItem("Asset Browser", nullptr, m_assetBrowserPanel->IsVisible())) {
-                m_assetBrowserPanel->ToggleVisible();
-            }
-            if (ImGui::MenuItem("Game Viewport", nullptr, m_gameViewportPanel->IsVisible())) {
+            
+            if (ImGui::MenuItem("Game View", nullptr, m_gameViewportPanel->IsVisible())) {
                 m_gameViewportPanel->ToggleVisible();
             }
+            
             if (ImGui::MenuItem("Inspector", nullptr, m_inspectorPanel->IsVisible())) {
                 m_inspectorPanel->ToggleVisible();
             }
-            if (ImGui::MenuItem("Debug Toolbar", nullptr, m_debugToolbarPanel->IsVisible())) {
-                m_debugToolbarPanel->ToggleVisible();
-            }
-            if (ImGui::MenuItem("Materials", nullptr, m_materialPalettePanel->IsVisible())) {
-                m_materialPalettePanel->ToggleVisible();
+            
+            if (ImGui::MenuItem("Asset Browser", nullptr, m_assetBrowserPanel->IsVisible())) {
+                m_assetBrowserPanel->ToggleVisible();
             }
             
             ImGui::Separator();
@@ -161,14 +164,20 @@ void MaterialEditorUI::RenderMainMenuBar() {
     }
 }
 
+void MaterialEditorUI::SetupDockspace() {
+    // The docking system is handled by UISystem
+    // No need for manual positioning anymore
+}
+
+void MaterialEditorUI::RenderPanels() {
+    // Panels are now rendered by the UISystem's docking system
+    // This method is no longer needed
+}
+
 void MaterialEditorUI::SetupDefaultLayout() {
-    // Add panels to their default Unity-style areas
-    m_layoutManager.AddPanelToArea(m_hierarchyPanel, "Left");
-    m_layoutManager.AddPanelToArea(m_assetBrowserPanel, "Left");  // Tab with hierarchy
-    m_layoutManager.AddPanelToArea(m_debugToolbarPanel, "TopToolbar");
-    m_layoutManager.AddPanelToArea(m_gameViewportPanel, "Center");
-    m_layoutManager.AddPanelToArea(m_inspectorPanel, "Right");
-    m_layoutManager.AddPanelToArea(m_materialPalettePanel, "Bottom");
+    // For now, let the docking system handle default layout
+    // Just add panels and let them float initially - users can dock them manually
+    std::cout << "Panels registered with docking system - users can arrange them by dragging!" << std::endl;
 }
 
 } // namespace BGE

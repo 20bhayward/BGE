@@ -22,6 +22,8 @@ using namespace BGE;
 
 class InteractiveEditorApp : public Application {
 public:
+    bool HandlesWorldRendering() const override { return true; }
+    
     bool Initialize() override {
         BGE_LOG_INFO("InteractiveEditor", "=== BGE Interactive Material Editor ===");
         BGE_LOG_INFO("InteractiveEditor", "Controls:");
@@ -32,7 +34,7 @@ public:
         BGE_LOG_INFO("InteractiveEditor", "  P: Pause/Play simulation");
         BGE_LOG_INFO("InteractiveEditor", "  S: Step one frame");
         BGE_LOG_INFO("InteractiveEditor", "  R: Reset simulation");
-        BGE_LOG_INFO("InteractiveEditor", "  C: Clear world");
+        BGE_LOG_INFO("InteractiveEditor", "  C: Toggle camera mode (WASD to pan view)");
         BGE_LOG_INFO("InteractiveEditor", "  [/]: Brush size");
         BGE_LOG_INFO("InteractiveEditor", "  B: Brush tool");
         BGE_LOG_INFO("InteractiveEditor", "  E: Eraser tool");
@@ -43,6 +45,8 @@ public:
         BGE_LOG_INFO("InteractiveEditor", "  H: Toggle Scanlines (retro effect)");
         BGE_LOG_INFO("InteractiveEditor", "  X: Trigger screen shake");
         BGE_LOG_INFO("InteractiveEditor", "  Z: Create explosion (particles + shake)");
+        BGE_LOG_INFO("InteractiveEditor", "Panel Controls:");
+        BGE_LOG_INFO("InteractiveEditor", "  Drag panel edges to resize manually");
         BGE_LOG_INFO("InteractiveEditor", "Material Palette:");
         BGE_LOG_INFO("InteractiveEditor", "  Sand, Water, Fire, Wood, Stone, Oil, Steam, Natural Gas,");
         BGE_LOG_INFO("InteractiveEditor", "  Thick Gas, Smoke, Poison Gas, Ash");
@@ -132,27 +136,8 @@ public:
         // Set up initial world
         SetupInitialWorld();
         
-        // Create some editor entities for demonstration
-        CreateEditorEntities();
-
-        // BEGIN: Added for MovementSystem test
-        auto& entityManager = BGE::EntityManager::Instance();
-        auto testEntity = entityManager.CreateEntity("MovingEntity");
-
-        if (testEntity)
-        {
-            testEntity->AddComponent<BGE::TransformComponent>(); // Default position is {0,0,0}
-            testEntity->AddComponent<BGE::VelocityComponent>(BGE::Vector3{10.0f, 0.0f, 0.0f});
-
-            m_testEntityId = testEntity->GetID(); // Store the ID
-            // Use "InteractiveEditor" for subsystem name to match existing logs
-            BGE_LOG_INFO("InteractiveEditor", "Created MovingEntity with ID: " + std::to_string(m_testEntityId));
-        }
-        else
-        {
-            BGE_LOG_ERROR("InteractiveEditor", "Failed to create MovingEntity.");
-        }
-        // END: Added for MovementSystem test
+        // Create minimal default scene with essential objects
+        CreateDefaultScene();
         
         BGE_LOG_INFO("InteractiveEditor", "Interactive Editor initialized successfully");
         return true;
@@ -170,27 +155,6 @@ public:
         // Update material tools
         m_materialTools.Update(deltaTime);
 
-        // BEGIN: Added for MovementSystem test
-        if (m_testEntityId != BGE::INVALID_ENTITY_ID) // Check if ID is valid
-        {
-            auto* entity = BGE::EntityManager::Instance().GetEntity(m_testEntityId);
-            if (entity)
-            {
-                auto* transform = entity->GetComponent<BGE::TransformComponent>();
-                if (transform)
-                {
-                    // Ensure BGE_LOG_DEBUG takes (const char* system, const char* message)
-                    std::string logMessage = "Entity Position: " + std::to_string(transform->position.x);
-                    BGE_LOG_DEBUG("Test", logMessage.c_str()); // Using "Test" as the system name for this log
-                }
-            }
-            // else
-            // {
-                // Entity might have been destroyed, log this once perhaps
-                // BGE_LOG_WARN("InteractiveEditor", "MovingEntity not found during update.");
-            // }
-        }
-        // END: Added for MovementSystem test
     }
     
     void Render() override {
@@ -321,6 +285,27 @@ public:
                 }
                 break;
             }
+            // Panel resizing controls (simplified - just log for now)
+            case '-': case '_': // Decrease panel sizes
+            {
+                BGE_LOG_INFO("InteractiveEditor", "Panel resize keys work - use mouse to drag panel edges");
+                break;
+            }
+            case '=': case '+': // Increase panel sizes
+            {
+                BGE_LOG_INFO("InteractiveEditor", "Panel resize keys work - use mouse to drag panel edges");
+                break;
+            }
+            case '{': case '[': // Decrease asset browser height
+            {
+                BGE_LOG_INFO("InteractiveEditor", "Panel resize keys work - use mouse to drag panel edges");
+                break;
+            }
+            case '}': case ']': // Increase asset browser height
+            {
+                BGE_LOG_INFO("InteractiveEditor", "Panel resize keys work - use mouse to drag panel edges");
+                break;
+            }
         }
     }
 
@@ -422,26 +407,33 @@ private:
         });
     }
     
-    void CreateEditorEntities() {
+    void CreateDefaultScene() {
         auto& entityManager = EntityManager::Instance();
         
-        // Create a cursor entity for demonstration
-        auto cursorEntity = entityManager.CreateEntity("EditorCursor");
-        cursorEntity->AddComponent<TransformComponent>(Vector3{0, 0, 0});
-        cursorEntity->AddComponent<NameComponent>("Editor Cursor");
+        // Create Main Camera
+        auto mainCamera = entityManager.CreateEntity("Main Camera");
+        mainCamera->AddComponent<TransformComponent>(Vector3{0, 0, 10});
+        mainCamera->AddComponent<NameComponent>("Main Camera");
+        // Add visual components so it shows up in scene
+        mainCamera->AddComponent<SpriteComponent>();
+        auto* cameraMaterial = mainCamera->AddComponent<MaterialComponent>();
+        cameraMaterial->materialID = 10; // Unique material ID for camera
         
-        // Create some material sample entities
-        auto sandSample = entityManager.CreateEntity("SandSample");
-        sandSample->AddComponent<TransformComponent>(Vector3{100, 100, 0});
-        sandSample->AddComponent<MaterialComponent>(1); // Sand material ID
-        sandSample->AddComponent<NameComponent>("Sand Sample");
+        // Create Directional Light
+        auto directionalLight = entityManager.CreateEntity("Directional Light");
+        directionalLight->AddComponent<TransformComponent>(Vector3{0, 10, 5});
+        directionalLight->AddComponent<NameComponent>("Directional Light");
+        // Add actual light component
+        auto* light = directionalLight->AddComponent<LightComponent>(LightComponent::Directional);
+        light->color = Vector3{1.0f, 1.0f, 1.0f};  // White light
+        light->intensity = 1.0f;
+        light->enabled = true;
+        // Add visual components so it shows up in scene
+        directionalLight->AddComponent<SpriteComponent>();
+        auto* lightMaterial = directionalLight->AddComponent<MaterialComponent>();
+        lightMaterial->materialID = 11; // Unique material ID for light
         
-        auto waterSample = entityManager.CreateEntity("WaterSample");
-        waterSample->AddComponent<TransformComponent>(Vector3{200, 100, 0});
-        waterSample->AddComponent<MaterialComponent>(2); // Water material ID
-        waterSample->AddComponent<NameComponent>("Water Sample");
-        
-        BGE_LOG_INFO("InteractiveEditor", "Created " + std::to_string(entityManager.GetEntityCount()) + " editor entities");
+        BGE_LOG_INFO("InteractiveEditor", "Created clean default scene with Main Camera and Directional Light");
     }
     
     std::shared_ptr<SimulationWorld> m_world;
@@ -449,7 +441,6 @@ private:
     MaterialTools m_materialTools;
     MaterialEditorUI m_editorUI;
 
-    BGE::EntityID m_testEntityId; // Added for MovementSystem test
 };
 
 int main() {

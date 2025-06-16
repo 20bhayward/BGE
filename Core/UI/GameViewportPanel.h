@@ -3,6 +3,7 @@
 #include "Panel.h"
 #include "../../Simulation/SimulationWorld.h"
 #include "../Input/MaterialTools.h"
+#include "../Entity.h"
 
 namespace BGE {
 
@@ -27,8 +28,11 @@ public:
 private:
     void RenderViewportToolbar();
     void RenderGameContent();
-    void RenderOverlayStats();
     void HandleCameraInput(float mouseX, float mouseY);
+    void HandleKeyboardInput();
+    void HandleImageInput(ImVec2 cursorPos, ImVec2 contentRegion);
+    void HandleMaterialDragAndDrop(ImVec2 mousePos, ImVec2 contentRegion);
+    void ApplyMaterialToEntity(EntityID entityId, const std::string& materialPath);
     
     SimulationWorld* m_world;
     MaterialTools* m_tools;
@@ -48,7 +52,6 @@ private:
     float m_lastMouseY = 0;
     
     // Overlay settings
-    bool m_showStats = true;
     bool m_showGrid = false;
     bool m_showToolbar = true;
 };

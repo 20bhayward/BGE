@@ -44,6 +44,14 @@ public:
     void UpdateTexture(uint32_t textureId, int width, int height, int channels, const void* data);
     void DeleteTexture(uint32_t textureId);
 
+    // Render-to-texture support for UI panels
+    bool CreateGameFramebuffer(int width, int height);
+    void DestroyGameFramebuffer();
+    void BeginRenderToTexture();
+    void EndRenderToTexture();
+    uint32_t GetGameTextureId() const { return m_gameTextureId; }
+    void GetGameTextureSize(int& width, int& height) const { width = m_gameTextureWidth; height = m_gameTextureHeight; }
+
     PixelCamera* GetPixelCamera() const { return m_pixelCamera.get(); }
     PostProcessor* GetPostProcessor() const { return m_postProcessor.get(); }
     Window* GetWindow() const { return m_window; }
@@ -59,6 +67,14 @@ private:
     int m_simViewportY = 0;
     int m_simViewportWidth = 512;
     int m_simViewportHeight = 512;
+
+    // Render-to-texture framebuffer for game panels
+    uint32_t m_gameFramebuffer = 0;
+    uint32_t m_gameTextureId = 0;
+    uint32_t m_gameDepthBuffer = 0;
+    int m_gameTextureWidth = 512;
+    int m_gameTextureHeight = 512;
+    bool m_renderingToTexture = false;
 
     // Placeholder for actual rendering context or device
     void* m_renderContext = nullptr;
