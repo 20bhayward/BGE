@@ -8,6 +8,72 @@
 #include "../Simulation/SimulationWorld.h"
 #include <GLFW/glfw3.h>
 
+// Define OpenGL extension function pointer types
+typedef void (APIENTRY *PFNGLGENFRAMEBUFFERSPROC) (GLsizei n, GLuint *framebuffers);
+typedef void (APIENTRY *PFNGLBINDFRAMEBUFFERPROC) (GLenum target, GLuint framebuffer);
+typedef void (APIENTRY *PFNGLFRAMEBUFFERTEXTURE2DPROC) (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+typedef void (APIENTRY *PFNGLGENRENDERBUFFERSPROC) (GLsizei n, GLuint *renderbuffers);
+typedef void (APIENTRY *PFNGLBINDRENDERBUFFERPROC) (GLenum target, GLuint renderbuffer);
+typedef void (APIENTRY *PFNGLRENDERBUFFERSTORAGEPROC) (GLenum target, GLenum internalformat, GLsizei width, GLsizei height);
+typedef void (APIENTRY *PFNGLFRAMEBUFFERRENDERBUFFERPROC) (GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer);
+typedef GLenum (APIENTRY *PFNGLCHECKFRAMEBUFFERSTATUSPROC) (GLenum target);
+typedef void (APIENTRY *PFNGLDELETEFRAMEBUFFERSPROC) (GLsizei n, const GLuint *framebuffers);
+typedef void (APIENTRY *PFNGLDELETERENDERBUFFERSPROC) (GLsizei n, const GLuint *renderbuffers);
+
+// OpenGL extension function pointers (will be loaded at runtime)
+PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers = nullptr;
+PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer = nullptr;
+PFNGLFRAMEBUFFERTEXTURE2DPROC glFramebufferTexture2D = nullptr;
+PFNGLGENRENDERBUFFERSPROC glGenRenderbuffers = nullptr;
+PFNGLBINDRENDERBUFFERPROC glBindRenderbuffer = nullptr;
+PFNGLRENDERBUFFERSTORAGEPROC glRenderbufferStorage = nullptr;
+PFNGLFRAMEBUFFERRENDERBUFFERPROC glFramebufferRenderbuffer = nullptr;
+PFNGLCHECKFRAMEBUFFERSTATUSPROC glCheckFramebufferStatus = nullptr;
+PFNGLDELETEFRAMEBUFFERSPROC glDeleteFramebuffers = nullptr;
+PFNGLDELETERENDERBUFFERSPROC glDeleteRenderbuffers = nullptr;
+
+// OpenGL constants for framebuffer operations
+#ifndef GL_FRAMEBUFFER
+#define GL_FRAMEBUFFER 0x8D40
+#endif
+#ifndef GL_COLOR_ATTACHMENT0
+#define GL_COLOR_ATTACHMENT0 0x8CE0
+#endif
+#ifndef GL_DEPTH_ATTACHMENT
+#define GL_DEPTH_ATTACHMENT 0x8D00
+#endif
+#ifndef GL_RENDERBUFFER
+#define GL_RENDERBUFFER 0x8D41
+#endif
+#ifndef GL_DEPTH_COMPONENT
+#define GL_DEPTH_COMPONENT 0x1902
+#endif
+#ifndef GL_FRAMEBUFFER_COMPLETE
+#define GL_FRAMEBUFFER_COMPLETE 0x8CD5
+#endif
+#ifndef GL_CLAMP_TO_EDGE
+#define GL_CLAMP_TO_EDGE 0x812F
+#endif
+
+// Function to load OpenGL extensions
+bool LoadFramebufferExtensions() {
+    glGenFramebuffers = (PFNGLGENFRAMEBUFFERSPROC)glfwGetProcAddress("glGenFramebuffers");
+    glBindFramebuffer = (PFNGLBINDFRAMEBUFFERPROC)glfwGetProcAddress("glBindFramebuffer");
+    glFramebufferTexture2D = (PFNGLFRAMEBUFFERTEXTURE2DPROC)glfwGetProcAddress("glFramebufferTexture2D");
+    glGenRenderbuffers = (PFNGLGENRENDERBUFFERSPROC)glfwGetProcAddress("glGenRenderbuffers");
+    glBindRenderbuffer = (PFNGLBINDRENDERBUFFERPROC)glfwGetProcAddress("glBindRenderbuffer");
+    glRenderbufferStorage = (PFNGLRENDERBUFFERSTORAGEPROC)glfwGetProcAddress("glRenderbufferStorage");
+    glFramebufferRenderbuffer = (PFNGLFRAMEBUFFERRENDERBUFFERPROC)glfwGetProcAddress("glFramebufferRenderbuffer");
+    glCheckFramebufferStatus = (PFNGLCHECKFRAMEBUFFERSTATUSPROC)glfwGetProcAddress("glCheckFramebufferStatus");
+    glDeleteFramebuffers = (PFNGLDELETEFRAMEBUFFERSPROC)glfwGetProcAddress("glDeleteFramebuffers");
+    glDeleteRenderbuffers = (PFNGLDELETERENDERBUFFERSPROC)glfwGetProcAddress("glDeleteRenderbuffers");
+    
+    return (glGenFramebuffers && glBindFramebuffer && glFramebufferTexture2D && 
+            glGenRenderbuffers && glBindRenderbuffer && glRenderbufferStorage &&
+            glFramebufferRenderbuffer && glCheckFramebufferStatus && 
+            glDeleteFramebuffers && glDeleteRenderbuffers);
+}
+
 namespace BGE {
 
 Renderer::Renderer() {
@@ -23,6 +89,13 @@ bool Renderer::Initialize(Window* window) {
     if (!m_window) {
         BGE_LOG_ERROR("Renderer", "Window pointer is null during initialization.");
         return false;
+    }
+
+    // Load OpenGL framebuffer extensions
+    if (!LoadFramebufferExtensions()) {
+        BGE_LOG_WARNING("Renderer", "Failed to load OpenGL framebuffer extensions. Render-to-texture will be disabled.");
+    } else {
+        BGE_LOG_INFO("Renderer", "OpenGL framebuffer extensions loaded successfully.");
     }
 
     m_pixelCamera = std::make_unique<PixelCamera>();
@@ -57,6 +130,10 @@ bool Renderer::Initialize(Window* window) {
 
 void Renderer::Shutdown() {
     BGE_LOG_INFO("Renderer", "Renderer shutdown.");
+    
+    // Cleanup framebuffer
+    DestroyGameFramebuffer();
+    
     if (m_postProcessor) {
         m_postProcessor->Shutdown();
         m_postProcessor.reset();
@@ -67,28 +144,33 @@ void Renderer::Shutdown() {
 void Renderer::BeginFrame() {
     BGE_LOG_TRACE("Renderer", "BeginFrame() - Setting up OpenGL state");
     
-    // Clear screen with a dark gray background
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    BGE_LOG_TRACE("Renderer", "Screen cleared with gray background");
-    
-    // Set OpenGL viewport to simulation rendering area
-    // Note: OpenGL Y=0 is at bottom, but our viewport Y coordinates are from top
-    int windowWidth, windowHeight;
-    if (m_window) {
-        m_window->GetSize(windowWidth, windowHeight);
-        // Convert from top-left origin to bottom-left origin for OpenGL
-        int openglY = windowHeight - m_simViewportY - m_simViewportHeight;
-        glViewport(m_simViewportX, openglY, m_simViewportWidth, m_simViewportHeight);
-        BGE_LOG_TRACE("Renderer", "OpenGL viewport set to (" + std::to_string(m_simViewportX) + "," + 
-                      std::to_string(openglY) + ") size " + std::to_string(m_simViewportWidth) + 
-                      "x" + std::to_string(m_simViewportHeight) + " (converted from window coords (" +
-                      std::to_string(m_simViewportX) + "," + std::to_string(m_simViewportY) + "))");
+    // If we're not rendering to texture, set up the normal framebuffer
+    if (!m_renderingToTexture) {
+        // Clear screen with a dark gray background
+        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        BGE_LOG_TRACE("Renderer", "Screen cleared with gray background");
+        
+        // Set OpenGL viewport to simulation rendering area
+        // Note: OpenGL Y=0 is at bottom, but our viewport Y coordinates are from top
+        int windowWidth, windowHeight;
+        if (m_window) {
+            m_window->GetSize(windowWidth, windowHeight);
+            // Convert from top-left origin to bottom-left origin for OpenGL
+            int openglY = windowHeight - m_simViewportY - m_simViewportHeight;
+            glViewport(m_simViewportX, openglY, m_simViewportWidth, m_simViewportHeight);
+            BGE_LOG_TRACE("Renderer", "OpenGL viewport set to (" + std::to_string(m_simViewportX) + "," + 
+                          std::to_string(openglY) + ") size " + std::to_string(m_simViewportWidth) + 
+                          "x" + std::to_string(m_simViewportHeight) + " (converted from window coords (" +
+                          std::to_string(m_simViewportX) + "," + std::to_string(m_simViewportY) + "))");
+        } else {
+            glViewport(m_simViewportX, m_simViewportY, m_simViewportWidth, m_simViewportHeight);
+            BGE_LOG_TRACE("Renderer", "OpenGL viewport set to (" + std::to_string(m_simViewportX) + "," + 
+                          std::to_string(m_simViewportY) + ") size " + std::to_string(m_simViewportWidth) + 
+                          "x" + std::to_string(m_simViewportHeight) + " (no window available for Y conversion)");
+        }
     } else {
-        glViewport(m_simViewportX, m_simViewportY, m_simViewportWidth, m_simViewportHeight);
-        BGE_LOG_TRACE("Renderer", "OpenGL viewport set to (" + std::to_string(m_simViewportX) + "," + 
-                      std::to_string(m_simViewportY) + ") size " + std::to_string(m_simViewportWidth) + 
-                      "x" + std::to_string(m_simViewportHeight) + " (no window available for Y conversion)");
+        BGE_LOG_TRACE("Renderer", "Rendering to texture - viewport already set by BeginRenderToTexture()");
     }
     
     // Set up pixel-perfect orthographic projection for material rendering
@@ -294,6 +376,120 @@ void Renderer::DeleteTexture(uint32_t textureId) {
     // BGE_LOG_INFO("Renderer", "DeleteTexture called: ID " + std::to_string(textureId));
     // In a real renderer:
     // - glDeleteTextures(1, &textureId);
+}
+
+bool Renderer::CreateGameFramebuffer(int width, int height) {
+    // Check if framebuffer extensions are available
+    if (!glGenFramebuffers) {
+        BGE_LOG_ERROR("Renderer", "OpenGL framebuffer extensions not available");
+        return false;
+    }
+    
+    // Cleanup existing framebuffer if any
+    DestroyGameFramebuffer();
+    
+    m_gameTextureWidth = width;
+    m_gameTextureHeight = height;
+    
+    // Generate framebuffer
+    glGenFramebuffers(1, &m_gameFramebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_gameFramebuffer);
+    
+    // Create color texture
+    glGenTextures(1, &m_gameTextureId);
+    glBindTexture(GL_TEXTURE_2D, m_gameTextureId);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    
+    // Attach color texture to framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_gameTextureId, 0);
+    
+    // Create depth buffer (optional, but good practice)
+    glGenRenderbuffers(1, &m_gameDepthBuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, m_gameDepthBuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_gameDepthBuffer);
+    
+    // Check framebuffer completeness
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        BGE_LOG_ERROR("Renderer", "Framebuffer not complete! Status: " + std::to_string(status));
+        DestroyGameFramebuffer();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        return false;
+    }
+    
+    // Restore default framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    BGE_LOG_INFO("Renderer", "Game framebuffer created successfully: " + std::to_string(width) + "x" + std::to_string(height) + 
+                 ", Texture ID: " + std::to_string(m_gameTextureId));
+    return true;
+}
+
+void Renderer::DestroyGameFramebuffer() {
+    if (m_gameDepthBuffer != 0 && glDeleteRenderbuffers) {
+        glDeleteRenderbuffers(1, &m_gameDepthBuffer);
+        m_gameDepthBuffer = 0;
+    }
+    
+    if (m_gameTextureId != 0) {
+        glDeleteTextures(1, &m_gameTextureId);
+        m_gameTextureId = 0;
+    }
+    
+    if (m_gameFramebuffer != 0 && glDeleteFramebuffers) {
+        glDeleteFramebuffers(1, &m_gameFramebuffer);
+        m_gameFramebuffer = 0;
+    }
+    
+    m_renderingToTexture = false;
+    BGE_LOG_INFO("Renderer", "Game framebuffer destroyed");
+}
+
+void Renderer::BeginRenderToTexture() {
+    if (m_gameFramebuffer == 0 || !glBindFramebuffer) {
+        BGE_LOG_ERROR("Renderer", "Cannot begin render to texture - framebuffer not created or extensions not available");
+        return;
+    }
+    
+    // Bind our framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, m_gameFramebuffer);
+    
+    // Set viewport to texture size
+    glViewport(0, 0, m_gameTextureWidth, m_gameTextureHeight);
+    
+    // Clear the texture
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    m_renderingToTexture = true;
+    
+    BGE_LOG_TRACE("Renderer", "Started rendering to texture (" + 
+                  std::to_string(m_gameTextureWidth) + "x" + std::to_string(m_gameTextureHeight) + ")");
+}
+
+void Renderer::EndRenderToTexture() {
+    if (!m_renderingToTexture || !glBindFramebuffer) {
+        return;
+    }
+    
+    // Restore default framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    // Restore window viewport (will be set again in BeginFrame if needed)
+    if (m_window) {
+        int windowWidth, windowHeight;
+        m_window->GetSize(windowWidth, windowHeight);
+        glViewport(0, 0, windowWidth, windowHeight);
+    }
+    
+    m_renderingToTexture = false;
+    
+    BGE_LOG_TRACE("Renderer", "Finished rendering to texture");
 }
 
 } // namespace BGE

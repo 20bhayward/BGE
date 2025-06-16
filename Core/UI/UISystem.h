@@ -4,6 +4,8 @@
 #include <functional>
 #include <imgui.h>
 #include "LayoutInfo.h"
+#include "DockingSystem.h"
+#include "PanelManager.h"
 
 namespace BGE {
 
@@ -41,12 +43,30 @@ public:
     
     // Layout management
     const LayoutInfo& GetLayoutInfo() const { return m_layoutInfo; }
+    
+    // Modern docking system
+    DockingSystem& GetDockingSystem() { return m_dockingSystem; }
+    PanelManager& GetPanelManager() { return m_panelManager; }
+    
+    // Panel management shortcuts
+    template<typename T, typename... Args>
+    std::shared_ptr<T> RegisterPanel(const std::string& name, Args&&... args) {
+        auto panel = m_panelManager.RegisterPanel<T>(name, std::forward<Args>(args)...);
+        if (panel) {
+            m_dockingSystem.AddPanel(panel);
+        }
+        return panel;
+    }
 
 private:
     bool m_enabled = true;
     bool m_initialized = false;
     Window* m_window = nullptr;
     LayoutInfo m_layoutInfo;
+    
+    // Modern docking system
+    DockingSystem m_dockingSystem;
+    PanelManager m_panelManager;
     
     void SetupStyle();
 };

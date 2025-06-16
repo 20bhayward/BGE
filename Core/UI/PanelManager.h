@@ -15,26 +15,25 @@ public:
     
     // Register a panel
     template<typename T, typename... Args>
-    T* RegisterPanel(const std::string& name, Args&&... args) {
-        auto panel = std::make_unique<T>(name, std::forward<Args>(args)...);
-        T* ptr = panel.get();
+    std::shared_ptr<T> RegisterPanel(const std::string& name, Args&&... args) {
+        auto panel = std::make_shared<T>(name, std::forward<Args>(args)...);
         panel->Initialize();
-        m_panels.push_back(std::move(panel));
-        m_panelMap[name] = ptr;
-        return ptr;
+        m_panels.push_back(panel);
+        m_panelMap[name] = panel;
+        return panel;
     }
     
     // Get panel by name
-    Panel* GetPanel(const std::string& name) {
+    std::shared_ptr<Panel> GetPanel(const std::string& name) {
         auto it = m_panelMap.find(name);
         return (it != m_panelMap.end()) ? it->second : nullptr;
     }
     
     // Get panel by type
     template<typename T>
-    T* GetPanel() {
+    std::shared_ptr<T> GetPanel() {
         for (auto& panel : m_panels) {
-            if (T* typedPanel = dynamic_cast<T*>(panel.get())) {
+            if (auto typedPanel = std::dynamic_pointer_cast<T>(panel)) {
                 return typedPanel;
             }
         }
@@ -50,7 +49,7 @@ public:
     
     // Show/hide panels
     void ShowPanel(const std::string& name, bool show = true) {
-        if (Panel* panel = GetPanel(name)) {
+        if (auto panel = GetPanel(name)) {
             panel->SetVisible(show);
         }
     }
@@ -60,7 +59,7 @@ public:
     }
     
     void TogglePanel(const std::string& name) {
-        if (Panel* panel = GetPanel(name)) {
+        if (auto panel = GetPanel(name)) {
             panel->ToggleVisible();
         }
     }
@@ -75,11 +74,11 @@ public:
     }
     
     // Get all panels
-    const std::vector<std::unique_ptr<Panel>>& GetPanels() const { return m_panels; }
+    const std::vector<std::shared_ptr<Panel>>& GetPanels() const { return m_panels; }
     
 private:
-    std::vector<std::unique_ptr<Panel>> m_panels;
-    std::unordered_map<std::string, Panel*> m_panelMap;
+    std::vector<std::shared_ptr<Panel>> m_panels;
+    std::unordered_map<std::string, std::shared_ptr<Panel>> m_panelMap;
 };
 
 } // namespace BGE

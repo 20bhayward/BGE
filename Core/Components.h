@@ -121,4 +121,42 @@ public:
     MaterialComponent(uint32_t id) : materialID(id) {}
 };
 
+// Light component for various light types
+class LightComponent : public Component {
+public:
+    enum Type {
+        Directional = 0,
+        Point = 1,
+        Spot = 2
+    };
+    
+    Type type = Point;
+    Vector3 color{1.0f, 1.0f, 1.0f};
+    float intensity = 1.0f;
+    float range = 10.0f;  // For point/spot lights
+    float innerCone = 30.0f;  // For spot lights (degrees)
+    float outerCone = 45.0f;  // For spot lights (degrees)
+    bool enabled = true;
+    
+    LightComponent() = default;
+    LightComponent(Type lightType) : type(lightType) {}
+    LightComponent(Type lightType, const Vector3& lightColor, float lightIntensity) 
+        : type(lightType), color(lightColor), intensity(lightIntensity) {}
+};
+
+// Basic rigidbody component for physics simulation
+class RigidbodyComponent : public Component {
+public:
+    float mass = 1.0f;
+    Vector3 velocity{0.0f, 0.0f, 0.0f};
+    Vector3 angularVelocity{0.0f, 0.0f, 0.0f};
+    float drag = 0.0f;
+    float angularDrag = 0.05f;
+    bool useGravity = true;
+    bool isKinematic = false;
+    
+    RigidbodyComponent() = default;
+    RigidbodyComponent(float bodyMass) : mass(bodyMass) {}
+};
+
 } // namespace BGE

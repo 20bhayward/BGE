@@ -2,7 +2,6 @@
 
 #include <memory>
 #include "../Input/MaterialTools.h"
-#include "UnityLayoutManager.h"
 #include "Panel.h"
 
 // Forward declarations
@@ -23,8 +22,12 @@ public:
     void Shutdown();
     void Render();
     
-    // Layout management
-    UnityLayoutManager& GetLayoutManager() { return m_layoutManager; }
+    // Panel access
+    std::shared_ptr<Panel> GetHierarchyPanel() { return m_hierarchyPanel; }
+    std::shared_ptr<Panel> GetInspectorPanel() { return m_inspectorPanel; }
+    std::shared_ptr<Panel> GetGameViewPanel() { return m_gameViewportPanel; }
+    std::shared_ptr<Panel> GetAssetBrowserPanel() { return m_assetBrowserPanel; }
+    std::shared_ptr<Panel> GetMaterialPalettePanel() { return m_materialPalettePanel; }
     
     // UI state
     bool IsVisible() const { return m_visible; }
@@ -34,17 +37,15 @@ public:
 private:
     void RenderMainMenuBar();
     void SetupDefaultLayout();
+    void SetupDockspace();
+    void RenderPanels();
     
     MaterialTools* m_materialTools = nullptr;
     SimulationWorld* m_world = nullptr;
     
-    // Unity-style layout management
-    UnityLayoutManager m_layoutManager;
-    
-    // Panel instances
+    // Panel instances (managed by docking system)
     std::shared_ptr<Panel> m_assetBrowserPanel;
     std::shared_ptr<Panel> m_hierarchyPanel;
-    std::shared_ptr<Panel> m_debugToolbarPanel;
     std::shared_ptr<Panel> m_gameViewportPanel;
     std::shared_ptr<Panel> m_inspectorPanel;
     std::shared_ptr<Panel> m_materialPalettePanel;

@@ -16,6 +16,9 @@ public:
     virtual void Update(float deltaTime) = 0;
     virtual void Render() = 0;
     
+    // Rendering control
+    virtual bool HandlesWorldRendering() const { return false; }
+    
     // Event callbacks
     virtual void OnWindowResize(uint32_t width, uint32_t height) { (void)width; (void)height; }
     virtual void OnWindowClose() {}

@@ -86,6 +86,12 @@ add_library(BGECore STATIC
     UI/TabbedPanel.cpp
     UI/UnityLayoutManager.h
     UI/UnityLayoutManager.cpp
+    UI/DockNode.h
+    UI/DockNode.cpp
+    UI/DockingSystem.h
+    UI/DockingSystem.cpp
+    UI/LayoutSerializer.h
+    UI/LayoutSerializer.cpp
     UI/AssetBrowserPanel.h
     UI/AssetBrowserPanel.cpp
     UI/SceneViewPanel.h
@@ -98,8 +104,6 @@ add_library(BGECore STATIC
     UI/HierarchyPanel.cpp
     UI/MaterialPalettePanel.h
     UI/MaterialPalettePanel.cpp
-    UI/DebugToolbarPanel.h
-    UI/DebugToolbarPanel.cpp
     
     # Platform
     Platform/Platform.h

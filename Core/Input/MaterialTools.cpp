@@ -137,9 +137,9 @@ void MaterialTools::SetViewport(int viewportX, int viewportY, int viewportWidth,
     m_viewportWidth = viewportWidth;
     m_viewportHeight = viewportHeight;
     
-    BGE_LOG_INFO("MaterialTools", "Viewport set to: (" + std::to_string(viewportX) + "," + 
-                 std::to_string(viewportY) + ") size " + std::to_string(viewportWidth) + "x" + 
-                 std::to_string(viewportHeight));
+    // BGE_LOG_INFO("MaterialTools", "Viewport set to: (" + std::to_string(viewportX) + "," + 
+    //              std::to_string(viewportY) + ") size " + std::to_string(viewportWidth) + "x" + 
+    //              std::to_string(viewportHeight));
 }
 
 void MaterialTools::ScreenToSimulation(float screenX, float screenY, int& simX, int& simY) const {

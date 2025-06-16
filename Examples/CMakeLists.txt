@@ -1,6 +1,7 @@
 add_subdirectory(BasicSandbox)
 add_subdirectory(InteractiveEditor)
 add_subdirectory(FullDemo)
+add_subdirectory(DockingSystemExample)
 
 # Additional examples
 if(BGE_BUILD_EXAMPLES)

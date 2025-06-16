@@ -2,8 +2,11 @@
 #include "../Services.h"
 #include "../Logger.h"
 #include "../../Renderer/Renderer.h"
+#include "../Components.h"
+#include "../Entity.h"
 #include <imgui.h>
 #include <algorithm>
+#include <filesystem>
 
 namespace BGE {
 
@@ -23,12 +26,12 @@ void GameViewportPanel::OnRender() {
     m_isFocused = ImGui::IsWindowFocused();
     m_isHovered = ImGui::IsWindowHovered();
     
-    // Main game content (no toolbar - now in DebugToolbarPanel)
+    // Render toolbar at the top of the game panel
+    RenderViewportToolbar();
+    
+    // Main game content takes the remaining space
     RenderGameContent();
     
-    if (m_showStats) {
-        RenderOverlayStats();
-    }
 }
 
 void GameViewportPanel::RenderViewportToolbar() {
@@ -109,8 +112,6 @@ void GameViewportPanel::RenderViewportToolbar() {
     }
     
     ImGui::Checkbox("Grid", &m_showGrid);
-    ImGui::SameLine();
-    ImGui::Checkbox("Stats", &m_showStats);
     
     ImGui::PopStyleVar(2);
 }
@@ -122,98 +123,104 @@ void GameViewportPanel::RenderGameContent() {
     ImVec2 cursorPos = ImGui::GetCursorScreenPos();
     
     // Calculate viewport bounds in screen space (absolute coordinates)
-    // ImGui cursor position is relative to the main viewport, we need absolute screen coordinates
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     m_viewportX = cursorPos.x - viewport->WorkPos.x;
     m_viewportY = cursorPos.y - viewport->WorkPos.y;
     m_viewportWidth = contentRegion.x;
     m_viewportHeight = contentRegion.y;
     
-    // Set the renderer viewport to this area so the game renders here
     auto renderer = Services::GetRenderer();
     auto world = Services::GetWorld();
-    if (renderer) {
-        renderer->SetSimulationViewport(static_cast<int>(m_viewportX), static_cast<int>(m_viewportY), 
-                                       static_cast<int>(m_viewportWidth), static_cast<int>(m_viewportHeight));
+    
+    if (renderer && world && m_viewportWidth > 0 && m_viewportHeight > 0) {
+        // Create or recreate framebuffer if size changed
+        int currentTexWidth, currentTexHeight;
+        renderer->GetGameTextureSize(currentTexWidth, currentTexHeight);
         
-        // Debug logging to verify viewport is being set correctly
-        static int logCounter = 0;
-        if (logCounter++ % 60 == 0) { // Log once per second at 60fps
-            BGE_LOG_INFO("GameViewport", "Setting viewport to (" + std::to_string(static_cast<int>(m_viewportX)) + 
-                        "," + std::to_string(static_cast<int>(m_viewportY)) + ") size " + 
+        if (currentTexWidth != static_cast<int>(m_viewportWidth) || 
+            currentTexHeight != static_cast<int>(m_viewportHeight) ||
+            renderer->GetGameTextureId() == 0) {
+            
+            // Create framebuffer for this panel size
+            bool success = renderer->CreateGameFramebuffer(static_cast<int>(m_viewportWidth), 
+                                                          static_cast<int>(m_viewportHeight));
+            if (!success) {
+                BGE_LOG_ERROR("GameViewport", "Failed to create game framebuffer");
+                return;
+            }
+            
+            BGE_LOG_INFO("GameViewport", "Created game framebuffer: " + 
                         std::to_string(static_cast<int>(m_viewportWidth)) + "x" + 
                         std::to_string(static_cast<int>(m_viewportHeight)));
-            
-            // Debug: Check if world has content
-            if (world) {
-                uint32_t activeCells = world->GetActiveCells();
-                const uint8_t* pixelData = world->GetPixelData();
-                BGE_LOG_INFO("GameViewport", "World has " + std::to_string(activeCells) + " active cells, pixel data: " + 
-                            (pixelData ? "available" : "null"));
-                
-                // Check if any pixels are non-transparent
-                if (pixelData) {
-                    int nonTransparentPixels = 0;
-                    uint32_t totalPixels = world->GetWidth() * world->GetHeight();
-                    for (uint32_t i = 0; i < totalPixels * 4; i += 4) {
-                        if (pixelData[i + 3] > 0) { // Check alpha channel
-                            nonTransparentPixels++;
-                        }
-                    }
-                    BGE_LOG_INFO("GameViewport", "Found " + std::to_string(nonTransparentPixels) + " non-transparent pixels");
-                }
-            }
-        }
-    }
-    
-    // Draw a visible background to show the viewport area
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-    ImU32 bgColor = IM_COL32(45, 45, 48, 255); // Dark gray background
-    drawList->AddRectFilled(cursorPos, ImVec2(cursorPos.x + contentRegion.x, cursorPos.y + contentRegion.y), bgColor);
-    
-    // Add a border to clearly show the game viewport area
-    ImU32 borderColor = m_cameraMode ? IM_COL32(0, 150, 255, 255) : IM_COL32(100, 100, 100, 255); // Blue border in camera mode
-    drawList->AddRect(cursorPos, ImVec2(cursorPos.x + contentRegion.x, cursorPos.y + contentRegion.y), borderColor, 0.0f, 0, 2.0f);
-    
-    // Camera mode indicator
-    if (m_cameraMode) {
-        drawList->AddText(ImVec2(cursorPos.x + 10, cursorPos.y + 10), IM_COL32(0, 150, 255, 255), "CAMERA MODE (C to toggle)");
-    }
-    
-    // Create invisible button to capture input for the game
-    ImGui::InvisibleButton("GameViewport", contentRegion);
-    
-    // Handle input when hovered
-    if (ImGui::IsItemHovered()) {
-        ImVec2 mousePos = ImGui::GetMousePos();
-        float relativeX = mousePos.x - cursorPos.x;
-        float relativeY = mousePos.y - cursorPos.y;
-        
-        // Handle camera controls first
-        HandleCameraInput(relativeX, relativeY);
-        
-        // Then handle material tools if not in camera mode
-        if (!m_cameraMode) {
-            m_tools->OnMouseMoved(relativeX, relativeY);
-            
-            // Handle mouse clicks
-            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                m_tools->OnMousePressed(0, relativeX, relativeY);
-            }
-            if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
-                m_tools->OnMousePressed(1, relativeX, relativeY);
-            }
-            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-                m_tools->OnMouseReleased(0, relativeX, relativeY);
-            }
-            if (ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
-                m_tools->OnMouseReleased(1, relativeX, relativeY);
-            }
         }
         
-        // Handle keyboard shortcuts
-        if (ImGui::IsKeyPressed(ImGuiKey_C)) {
-            m_cameraMode = !m_cameraMode;
+        // Update MaterialTools viewport to match our panel
+        m_tools->SetViewport(static_cast<int>(cursorPos.x), static_cast<int>(cursorPos.y), 
+                            static_cast<int>(contentRegion.x), static_cast<int>(contentRegion.y));
+        
+        // Render the game to our texture
+        renderer->BeginRenderToTexture();
+        renderer->BeginFrame();
+        renderer->RenderWorld(world.get());  // Convert shared_ptr to raw pointer
+        renderer->RenderParticles();
+        renderer->EndFrame();
+        renderer->EndRenderToTexture();
+        
+        // Display the rendered texture in the ImGui panel
+        uint32_t textureId = renderer->GetGameTextureId();
+        if (textureId != 0) {
+            // Note: ImGui expects texture coordinates flipped on Y axis for OpenGL
+            ImTextureID imguiTextureId = static_cast<ImTextureID>(static_cast<uintptr_t>(textureId));
+            ImGui::Image(imguiTextureId, 
+                        contentRegion, 
+                        ImVec2(0, 1), ImVec2(1, 0)); // Flip Y coordinate for OpenGL
+        } else {
+            // Fallback: draw a placeholder
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+            ImU32 bgColor = IM_COL32(50, 50, 50, 255);
+            drawList->AddRectFilled(cursorPos, ImVec2(cursorPos.x + contentRegion.x, cursorPos.y + contentRegion.y), bgColor);
+            drawList->AddText(ImVec2(cursorPos.x + 10, cursorPos.y + 10), IM_COL32(255, 255, 255, 255), "Game Texture Not Available");
+        }
+        
+        // Add a subtle border to show the game area
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        ImU32 borderColor = m_cameraMode ? IM_COL32(0, 150, 255, 100) : IM_COL32(100, 100, 100, 50);
+        drawList->AddRect(cursorPos, ImVec2(cursorPos.x + contentRegion.x, cursorPos.y + contentRegion.y), borderColor, 0.0f, 0, 1.0f);
+    
+        // Camera mode indicator in corner
+        if (m_cameraMode) {
+            drawList->AddText(ImVec2(cursorPos.x + 10, cursorPos.y + 10), IM_COL32(0, 150, 255, 255), "CAMERA MODE - WASD to move, C to exit");
+        } else {
+            // Show helpful hint about camera mode
+            drawList->AddText(ImVec2(cursorPos.x + 10, cursorPos.y + contentRegion.y - 25), IM_COL32(150, 150, 150, 150), "Press C for camera mode");
+        }
+        
+        // Check if the image is hovered for input handling
+        bool imageHovered = ImGui::IsItemHovered();
+        
+        // Handle material drag and drop on the scene view
+        if (imageHovered) {
+            HandleMaterialDragAndDrop(ImGui::GetMousePos(), contentRegion);
+        }
+        
+        // Handle keyboard camera movement when panel is focused (regardless of hover)
+        if (m_isFocused || imageHovered) {
+            HandleKeyboardInput();
+        }
+        
+        // Handle input when image is hovered
+        if (imageHovered) {
+            HandleImageInput(cursorPos, contentRegion);
+        }
+    } else {
+        // Fallback: create invisible button when no texture available
+        ImGui::InvisibleButton("GameViewport", contentRegion);
+        
+        if (ImGui::IsItemHovered()) {
+            ImVec2 mousePos = ImGui::GetMousePos();
+            float relativeX = mousePos.x - cursorPos.x;
+            float relativeY = mousePos.y - cursorPos.y;
+            HandleCameraInput(relativeX, relativeY);
         }
     }
     
@@ -243,39 +250,6 @@ void GameViewportPanel::RenderGameContent() {
     }
 }
 
-void GameViewportPanel::RenderOverlayStats() {
-    // Overlay stats in bottom-left corner
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | 
-                                   ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | 
-                                   ImGuiWindowFlags_NoNav;
-    
-    const float PAD = 10.0f;
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImVec2 work_pos = viewport->WorkPos;
-    ImVec2 work_size = viewport->WorkSize;
-    ImVec2 window_pos, window_pos_pivot;
-    
-    window_pos.x = work_pos.x + PAD;
-    window_pos.y = work_pos.y + work_size.y - PAD;
-    window_pos_pivot.x = 0.0f;
-    window_pos_pivot.y = 1.0f;
-    
-    ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
-    ImGui::SetNextWindowBgAlpha(0.35f);
-    
-    if (ImGui::Begin("Viewport Stats", nullptr, window_flags)) {
-        ImGui::Text("Status: %s", m_world->IsPaused() ? "PAUSED" : "RUNNING");
-        ImGui::Text("Frame: %I64d", static_cast<long long>(m_world->GetUpdateCount()));
-        ImGui::Text("Particles: %d", m_world->GetActiveCells());
-        ImGui::Text("FPS: %.1f (%.2fms)", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
-        
-        ToolMode currentMode = m_tools->GetToolMode();
-        const char* toolName = (currentMode == ToolMode::Paint) ? "Paint" : 
-                              (currentMode == ToolMode::Erase) ? "Erase" : "Sample";
-        ImGui::Text("Tool: %s (%d)", toolName, m_tools->GetBrush().GetSize());
-    }
-    ImGui::End();
-}
 
 void GameViewportPanel::HandleCameraInput(float mouseX, float mouseY) {
     auto renderer = Services::GetRenderer();
@@ -320,10 +294,182 @@ void GameViewportPanel::HandleCameraInput(float mouseX, float mouseY) {
     }
     
     // Camera reset with middle click
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Middle) && ImGui::IsKeyDown(ImGuiKey_LeftShift)) {
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Middle) && ImGui::GetIO().KeyShift) {
         camera->SetPosition(Vector2{0, 0});
         camera->SetZoom(1);
     }
+}
+
+void GameViewportPanel::HandleImageInput(ImVec2 cursorPos, ImVec2 contentRegion) {
+    if (!m_tools) return;
+    
+    ImVec2 mousePos = ImGui::GetMousePos();
+    float relativeX = mousePos.x - cursorPos.x;
+    float relativeY = mousePos.y - cursorPos.y;
+    
+    // Ensure mouse is within the image bounds
+    if (relativeX < 0 || relativeY < 0 || relativeX >= contentRegion.x || relativeY >= contentRegion.y) {
+        return;
+    }
+    
+    // Handle camera controls first
+    HandleCameraInput(relativeX, relativeY);
+    
+    // Convert panel-relative coordinates to absolute screen coordinates
+    // MaterialTools expects absolute screen coordinates, not relative ones
+    // (mousePos already declared above)
+    
+    // Then handle material tools if not in camera mode and mouse is within bounds
+    if (!m_cameraMode && relativeX >= 0 && relativeY >= 0 && relativeX < contentRegion.x && relativeY < contentRegion.y) {
+        // Use absolute screen coordinates for material tools (they do their own conversion)
+        m_tools->OnMouseMoved(mousePos.x, mousePos.y);
+        
+        // Handle mouse clicks
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+            m_tools->OnMousePressed(0, mousePos.x, mousePos.y);
+        }
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+            m_tools->OnMousePressed(1, mousePos.x, mousePos.y);
+        }
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+            m_tools->OnMouseReleased(0, mousePos.x, mousePos.y);
+        }
+        if (ImGui::IsMouseReleased(ImGuiMouseButton_Right)) {
+            m_tools->OnMouseReleased(1, mousePos.x, mousePos.y);
+        }
+    }
+}
+
+void GameViewportPanel::HandleKeyboardInput() {
+    // Handle keyboard shortcuts
+    if (ImGui::IsKeyPressed(static_cast<ImGuiKey>('C'))) {
+        m_cameraMode = !m_cameraMode;
+    }
+    
+    // Handle keyboard camera movement (arrow keys and WASD) - only when in camera mode
+    if (!m_cameraMode) {
+        return; // Skip camera movement when not in camera mode
+    }
+    
+    auto renderer = Services::GetRenderer();
+    if (renderer && renderer->GetPixelCamera()) {
+        auto* camera = renderer->GetPixelCamera();
+        Vector2 currentPos = camera->GetPosition();
+        
+        // Much slower movement speed and frame-rate independent
+        float baseSpeed = 2.0f; // Reduced from 5.0f
+        float zoomFactor = 1.0f / std::max(0.1f, static_cast<float>(camera->GetZoom())); // Prevent division by zero
+        float moveSpeed = baseSpeed * zoomFactor;
+        
+        // Use a simple frame limiting approach - only move every few frames
+        static int frameCounter = 0;
+        frameCounter++;
+        if (frameCounter % 3 != 0) { // Only move every 3rd frame to slow it down
+            return;
+        }
+        
+        bool moved = false;
+        Vector2 newPos = currentPos;
+        
+        if (ImGui::IsKeyDown(static_cast<ImGuiKey>(262)) || ImGui::IsKeyDown(static_cast<ImGuiKey>('A'))) { // 262 = Left Arrow
+            newPos.x -= moveSpeed;
+            moved = true;
+        }
+        if (ImGui::IsKeyDown(static_cast<ImGuiKey>(263)) || ImGui::IsKeyDown(static_cast<ImGuiKey>('D'))) { // 263 = Right Arrow
+            newPos.x += moveSpeed;
+            moved = true;
+        }
+        if (ImGui::IsKeyDown(static_cast<ImGuiKey>(264)) || ImGui::IsKeyDown(static_cast<ImGuiKey>('W'))) { // 264 = Up Arrow
+            newPos.y -= moveSpeed;
+            moved = true;
+        }
+        if (ImGui::IsKeyDown(static_cast<ImGuiKey>(265)) || ImGui::IsKeyDown(static_cast<ImGuiKey>('S'))) { // 265 = Down Arrow
+            newPos.y += moveSpeed;
+            moved = true;
+        }
+        
+        if (moved) {
+            camera->SetPosition(newPos);
+        }
+    }
+}
+
+void GameViewportPanel::HandleMaterialDragAndDrop(ImVec2 mousePos, ImVec2 /*contentRegion*/) {
+    // Handle material drop from AssetBrowser
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PATH")) {
+            std::string draggedAsset = static_cast<const char*>(payload->Data);
+            
+            // Check if the dragged asset is a material
+            std::filesystem::path assetPath(draggedAsset);
+            std::string extension = assetPath.extension().string();
+            std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+            
+            if (extension == ".json") {
+                // Check if it's a material file
+                std::string filename = assetPath.stem().string();
+                std::transform(filename.begin(), filename.end(), filename.begin(), ::tolower);
+                
+                if (filename.find("material") != std::string::npos || filename.find("mat") != std::string::npos) {
+                    // TODO: In a full implementation, you would:
+                    // 1. Convert mouse position to world coordinates
+                    // 2. Perform a raycast to find the entity under the mouse
+                    // 3. Apply the material to that entity
+                    
+                    // For now, we'll just log the attempt
+                    std::cout << "Material " << draggedAsset << " dropped on Scene View at position (" 
+                              << mousePos.x << ", " << mousePos.y << ")" << std::endl;
+                    
+                    // Simple implementation: Apply to first entity with transform component
+                    auto& entityManager = EntityManager::Instance();
+                    for (const auto& [id, entity] : entityManager.GetAllEntities()) {
+                        if (entity->GetComponent<TransformComponent>()) {
+                            ApplyMaterialToEntity(id, draggedAsset);
+                            break; // Apply to first entity found
+                        }
+                    }
+                }
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+}
+
+void GameViewportPanel::ApplyMaterialToEntity(EntityID entityId, const std::string& materialPath) {
+    auto& entityManager = EntityManager::Instance();
+    auto entity = entityManager.GetEntity(entityId);
+    
+    if (!entity) {
+        std::cout << "Failed to apply material: Entity " << entityId << " not found" << std::endl;
+        return;
+    }
+    
+    // Load material ID from file or assign a default
+    uint32_t materialID = 1; // Default material ID
+    
+    try {
+        // Simple material ID extraction - in a real implementation,
+        // you'd parse the JSON and extract the material ID
+        std::string filename = std::filesystem::path(materialPath).stem().string();
+        
+        // Generate a simple material ID based on filename hash
+        // In a real implementation, this would be loaded from the material system
+        std::hash<std::string> hasher;
+        materialID = static_cast<uint32_t>(hasher(filename) % 1000) + 1;
+    } catch (const std::exception& e) {
+        std::cout << "Warning: Could not process material file " << materialPath << ": " << e.what() << std::endl;
+    }
+    
+    // Get or add MaterialComponent
+    auto* materialComponent = entity->GetComponent<MaterialComponent>();
+    if (!materialComponent) {
+        materialComponent = entity->AddComponent<MaterialComponent>();
+    }
+    
+    // Apply the new material
+    materialComponent->materialID = materialID;
+    
+    std::cout << "Applied material " << materialPath << " (ID: " << materialID << ") to entity " << entityId << " via Scene View" << std::endl;
 }
 
 } // namespace BGE

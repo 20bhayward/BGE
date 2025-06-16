@@ -23,7 +23,8 @@
       "Bash(cp:*)",
       "Bash(awk:*)",
       "Bash(g++:*)",
-      "Bash(msbuild:*)"
+      "Bash(msbuild:*)",
+      "Bash(touch:*)"
     ],
     "deny": []
   }
