@@ -8,7 +8,7 @@
 #include "../../Core/Entity.h"
 #include "../../Core/Components.h"
 #include "../../Core/Input/MaterialTools.h"
-#include "../../Core/UI/MaterialEditorUI.h"
+#include "../../Core/UI/Legacy/MaterialEditorUI.h"
 #include "../../Simulation/SimulationWorld.h"
 #include "../../Simulation/Materials/MaterialSystem.h"
 #include "../../Core/Input/InputManager.h" // For InputManager and Keys

@@ -1,8 +1,8 @@
 #include "SceneViewPanel.h"
-#include "../Services.h"
-#include "../ServiceLocator.h"
-#include "../../Renderer/Renderer.h"
-#include "../../Core/Components.h"
+#include "../../Services.h"
+#include "../../ServiceLocator.h"
+#include "../../../Renderer/Renderer.h"
+#include "../../Components.h"
 #include <imgui.h>
 #include <algorithm>
 #include <iostream>

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Panel.h"
-#include "../../Simulation/SimulationWorld.h"
-#include "../Input/MaterialTools.h"
-#include "../Entity.h"
+#include "../Framework/Panel.h"
+#include "../../../Simulation/SimulationWorld.h"
+#include "../../Input/MaterialTools.h"
+#include "../../Entity.h"
 
 namespace BGE {
 

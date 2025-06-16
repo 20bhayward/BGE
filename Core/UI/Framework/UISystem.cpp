@@ -1,5 +1,5 @@
 #include "UISystem.h"
-#include "../Platform/Window.h"
+#include "../../Platform/Window.h"
 
 // ImGui includes (we'll need to add these to the project)
 #include <imgui.h>
@@ -33,8 +33,16 @@ bool UISystem::Initialize(Window* window) {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
     
-    // Disable ImGui ini file completely to test if Debug window is created programmatically
-    io.IniFilename = nullptr;
+    // Try to enable docking if available
+#ifdef IMGUI_HAS_DOCK
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    std::cout << "ImGui docking enabled!" << std::endl;
+#else
+    std::cout << "ImGui docking not available - using custom system" << std::endl;
+#endif
+    
+    // Enable ImGui layout persistence
+    io.IniFilename = "imgui_layout.ini";
     
     // Setup Dear ImGui style
     SetDarkTheme();
@@ -88,23 +96,12 @@ void UISystem::BeginFrame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    
-    // Debug: Check for Debug window creation
-    static bool firstFrame = true;
-    if (firstFrame) {
-        firstFrame = false;
-        std::cout << "=== IMGUI DEBUG TRACKING ENABLED ===" << std::endl;
-        std::cout << "=== Looking for Debug window creation ===" << std::endl;
-    }
 }
 
 void UISystem::EndFrame() {
     if (!m_initialized || !m_enabled) {
         return;
     }
-    
-    // Render the docking system (which renders all docked panels)
-    m_dockingSystem.Render();
     
     // Rendering
     ImGui::Render();
@@ -210,7 +207,7 @@ void Spacing() {
 } // namespace UI
 
 void UISystem::BeginDockspace() {
-    // Render the modern docking system instead
+    // Use custom docking system (resize disabled to prevent Debug window)
     m_dockingSystem.Render();
 }
 
@@ -221,6 +218,106 @@ void UISystem::EndDockspace() {
 bool UISystem::IsDockingEnabled() const {
     // Return true for simulated docking
     return true;
+}
+
+void UISystem::RenderLayoutMenu() {
+    if (ImGui::BeginMenu("Layout")) {
+        // Preset layouts
+        if (ImGui::MenuItem("Unity Style")) {
+            m_dockingSystem.LoadUnityLayout();
+        }
+        
+        if (ImGui::MenuItem("Code Editor")) {
+            m_dockingSystem.LoadCodeEditorLayout();
+        }
+        
+        if (ImGui::MenuItem("Inspector Focus")) {
+            m_dockingSystem.LoadInspectorFocusLayout();
+        }
+        
+        if (ImGui::MenuItem("Game Focus")) {
+            m_dockingSystem.LoadGameFocusLayout();
+        }
+        
+        // Show saved layouts if any exist
+        auto savedLayouts = m_dockingSystem.GetSavedLayouts();
+        if (!savedLayouts.empty()) {
+            ImGui::Separator();
+            
+            static std::string layoutToDelete = "";
+            
+            for (const auto& layoutName : savedLayouts) {
+                if (ImGui::MenuItem(layoutName.c_str())) {
+                    m_dockingSystem.LoadCustomLayout(layoutName);
+                }
+                
+                // Right-click context menu for delete
+                if (ImGui::BeginPopupContextItem()) {
+                    if (ImGui::MenuItem("Delete")) {
+                        layoutToDelete = layoutName;
+                    }
+                    ImGui::EndPopup();
+                }
+            }
+            
+            // Process deletion outside the loop
+            if (!layoutToDelete.empty()) {
+                m_dockingSystem.DeleteCustomLayout(layoutToDelete);
+                layoutToDelete = "";
+            }
+        }
+        
+        ImGui::Separator();
+        
+        // Save current layout
+        if (ImGui::MenuItem("Save Current Layout...")) {
+            m_dockingSystem.ShowSaveDialog();
+        }
+        
+        if (ImGui::MenuItem("Reset to Default")) {
+            m_dockingSystem.ResetToDefaultLayout();
+        }
+        
+        ImGui::EndMenu();
+    }
+}
+
+void UISystem::RenderWindowsMenu() {
+    if (ImGui::BeginMenu("Windows")) {
+        // Get all available panels from the docking system
+        auto& allPanels = m_dockingSystem.GetAllAvailablePanels();
+        
+        for (const auto& [panelName, panel] : allPanels) {
+            // Check if panel is actually in the active docking system, not just visible
+            bool isInDockingSystem = (m_dockingSystem.GetPanel(panelName) != nullptr);
+            
+            if (!isInDockingSystem) {
+                // Only show create option for panels not in docking system
+                if (ImGui::MenuItem(("Create " + panelName).c_str())) {
+                    // Show the panel - add it back to docking system
+                    m_dockingSystem.ShowPanel(panelName);
+                }
+            } else {
+                // Show panel name but disabled (docked panels can't be hidden from here)
+                ImGui::BeginDisabled();
+                ImGui::MenuItem((panelName + " (Active)").c_str(), nullptr, true);
+                ImGui::EndDisabled();
+            }
+        }
+        
+        ImGui::Separator();
+        
+        if (ImGui::MenuItem("Create All Windows")) {
+            for (const auto& [panelName, panel] : allPanels) {
+                bool isInDockingSystem = (m_dockingSystem.GetPanel(panelName) != nullptr);
+                if (!isInDockingSystem) {
+                    m_dockingSystem.ShowPanel(panelName);
+                }
+            }
+        }
+        
+        ImGui::EndMenu();
+    }
 }
 
 } // namespace BGE

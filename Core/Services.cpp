@@ -4,7 +4,7 @@
 #include "../Audio/AudioSystem.h"
 #include "Input/InputManager.h"
 #include "../AssetPipeline/AssetManager.h"
-#include "UI/UISystem.h"
+#include "UI/Framework/UISystem.h"
 #include "../Renderer/ParticleSystem.h" // Include ParticleSystem header
 
 namespace BGE {

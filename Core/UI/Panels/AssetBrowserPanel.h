@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Panel.h"
-#include "../../Core/EventBus.h"
-#include "../../Core/AssetTypes.h"
+#include "../Framework/Panel.h"
+#include "../../EventBus.h"
+#include "../../AssetTypes.h"
 #include <vector>
 #include <string>
 #include <unordered_map>

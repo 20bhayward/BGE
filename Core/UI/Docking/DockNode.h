@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Panel.h"
+#include "../Framework/Panel.h"
 #include <memory>
 #include <vector>
 #include <string>

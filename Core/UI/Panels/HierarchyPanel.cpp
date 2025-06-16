@@ -1,8 +1,8 @@
 #include "HierarchyPanel.h"
-#include "../Services.h"
-#include "../../Core/Components.h"
-#include "../../Core/Entity.h"
-#include "../../Core/ServiceLocator.h"
+#include "../../Services.h"
+#include "../../Components.h"
+#include "../../Entity.h"
+#include "../../ServiceLocator.h"
 #include <imgui.h>
 #include <algorithm>
 #include <iostream>

@@ -1,7 +1,7 @@
 #include "InspectorPanel.h"
-#include "../Services.h"
-#include "../../Core/ServiceLocator.h"
-#include "../../Core/Entity.h"
+#include "../../Services.h"
+#include "../../ServiceLocator.h"
+#include "../../Entity.h"
 #include <imgui.h>
 #include <iostream>
 #include <algorithm>
