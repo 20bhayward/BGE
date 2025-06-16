@@ -1,9 +1,9 @@
 #include "GameViewportPanel.h"
-#include "../Services.h"
-#include "../Logger.h"
-#include "../../Renderer/Renderer.h"
-#include "../Components.h"
-#include "../Entity.h"
+#include "../../Services.h"
+#include "../../Logger.h"
+#include "../../../Renderer/Renderer.h"
+#include "../../Components.h"
+#include "../../Entity.h"
 #include <imgui.h>
 #include <algorithm>
 #include <filesystem>

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <iostream>
+#include <functional>
 #include <imgui.h>
 
 namespace BGE {
@@ -38,19 +39,18 @@ public:
     void Render() {
         if (!m_visible) return;
         
-        
-        // Debug: Check for problematic panel names
-        if (m_name == "Debug" || m_name == "Debug##Default" || m_name.empty()) {
-            std::cout << "ERROR: Problematic panel detected - Name: '" << m_name << "'" << std::endl;
-            std::cout << "ERROR: This panel will be skipped to prevent Debug window creation" << std::endl;
-            return; // Skip rendering entirely
-        }
+        bool wasVisible = m_visible;
         
         // Begin window - let ImGui handle docking
         if (ImGui::Begin(m_name.c_str(), &m_visible, m_windowFlags)) {
             OnRender();
         }
         ImGui::End();
+        
+        // If visibility changed (user clicked X), notify callback if set
+        if (wasVisible != m_visible && m_visibilityChangedCallback) {
+            m_visibilityChangedCallback(m_name, m_visible);
+        }
     }
     
     // Override this to render panel content
@@ -82,6 +82,11 @@ public:
     void SetAutoResize(bool autoResize) { m_autoResize = autoResize; }
     bool IsAutoResize() const { return m_autoResize; }
     
+    // Visibility change callback
+    void SetVisibilityChangedCallback(std::function<void(const std::string&, bool)> callback) {
+        m_visibilityChangedCallback = callback;
+    }
+    
 protected:
     
     std::string m_name;
@@ -93,6 +98,9 @@ protected:
     ImVec2 m_minSize;
     ImVec2 m_maxSize;
     bool m_autoResize;
+    
+    // Callback for when visibility changes (user clicks X button)
+    std::function<void(const std::string&, bool)> m_visibilityChangedCallback;
 };
 
 } // namespace BGE

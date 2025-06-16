@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Panel.h"
-#include "../../Core/Entity.h"
-#include "../../Core/Events.h"
-#include "../../Core/EventBus.h"
-#include "../../Core/Components.h"
-#include "../../Core/Math/Vector2.h"
-#include "../../Core/Math/Vector3.h"
+#include "../Framework/Panel.h"
+#include "../../Entity.h"
+#include "../../Events.h"
+#include "../../EventBus.h"
+#include "../../Components.h"
+#include "../../Math/Vector2.h"
+#include "../../Math/Vector3.h"
 #include <vector>
 #include <unordered_set>
 #include <string>

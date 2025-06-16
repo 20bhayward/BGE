@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Panel.h"
-#include "../../Simulation/SimulationWorld.h"
-#include "../../Core/Entity.h"
-#include "../../Core/Events.h"
-#include "../../Core/EventBus.h"
+#include "../Framework/Panel.h"
+#include "../../../Simulation/SimulationWorld.h"
+#include "../../Entity.h"
+#include "../../Events.h"
+#include "../../EventBus.h"
 #include <vector>
 #include <unordered_set>
 #include <string>

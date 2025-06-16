@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Panel.h"
-#include "../Input/MaterialTools.h"
+#include "../Framework/Panel.h"
+#include "../../Input/MaterialTools.h"
 
 namespace BGE {
 

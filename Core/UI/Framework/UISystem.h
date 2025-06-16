@@ -4,7 +4,7 @@
 #include <functional>
 #include <imgui.h>
 #include "LayoutInfo.h"
-#include "DockingSystem.h"
+#include "../Docking/DockingSystem.h"
 #include "PanelManager.h"
 
 namespace BGE {
@@ -43,6 +43,8 @@ public:
     
     // Layout management
     const LayoutInfo& GetLayoutInfo() const { return m_layoutInfo; }
+    void RenderLayoutMenu();
+    void RenderWindowsMenu();
     
     // Modern docking system
     DockingSystem& GetDockingSystem() { return m_dockingSystem; }

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <memory>
-#include "../Input/MaterialTools.h"
-#include "Panel.h"
+#include "../../Input/MaterialTools.h"
+#include "../Framework/Panel.h"
 
 // Forward declarations
 namespace BGE {

@@ -74,36 +74,50 @@ add_library(BGECore STATIC
     Input/CategorizedMaterialPalette.h
     Input/CategorizedMaterialPalette.cpp
     
-    # UI System
-    UI/UISystem.h
-    UI/UISystem.cpp
-    UI/MaterialEditorUI.h
-    UI/MaterialEditorUI.cpp
-    UI/Panel.h
-    UI/PanelManager.h
-    UI/LayoutInfo.h
-    UI/TabbedPanel.h
-    UI/TabbedPanel.cpp
-    UI/UnityLayoutManager.h
-    UI/UnityLayoutManager.cpp
-    UI/DockNode.h
-    UI/DockNode.cpp
-    UI/DockingSystem.h
-    UI/DockingSystem.cpp
-    UI/LayoutSerializer.h
-    UI/LayoutSerializer.cpp
-    UI/AssetBrowserPanel.h
-    UI/AssetBrowserPanel.cpp
-    UI/SceneViewPanel.h
-    UI/SceneViewPanel.cpp
-    UI/GameViewportPanel.h
-    UI/GameViewportPanel.cpp
-    UI/InspectorPanel.h
-    UI/InspectorPanel.cpp
-    UI/HierarchyPanel.h
-    UI/HierarchyPanel.cpp
-    UI/MaterialPalettePanel.h
-    UI/MaterialPalettePanel.cpp
+    # UI System - Framework
+    UI/Framework/UISystem.h
+    UI/Framework/UISystem.cpp
+    UI/Framework/Panel.h
+    UI/Framework/PanelManager.h
+    UI/Framework/LayoutInfo.h
+    
+    # UI System - Docking
+    UI/Docking/DockNode.h
+    UI/Docking/DockNode.cpp
+    UI/Docking/DockingSystem.h
+    UI/Docking/DockingSystem.cpp
+    UI/Docking/LayoutSerializer.h
+    UI/Docking/LayoutSerializer.cpp
+    UI/Docking/LayoutData.h
+    UI/Docking/LayoutData.cpp
+    
+    # UI System - Panels
+    UI/Panels/AssetBrowserPanel.h
+    UI/Panels/AssetBrowserPanel.cpp
+    UI/Panels/SceneViewPanel.h
+    UI/Panels/SceneViewPanel.cpp
+    UI/Panels/GameViewportPanel.h
+    UI/Panels/GameViewportPanel.cpp
+    UI/Panels/InspectorPanel.h
+    UI/Panels/InspectorPanel.cpp
+    UI/Panels/HierarchyPanel.h
+    UI/Panels/HierarchyPanel.cpp
+    UI/Panels/MaterialPalettePanel.h
+    UI/Panels/MaterialPalettePanel.cpp
+    UI/Panels/MaterialEditorPanel.h
+    UI/Panels/MaterialEditorPanel.cpp
+    UI/Panels/ConsolePanel.h
+    UI/Panels/ConsolePanel.cpp
+    
+    # UI System - Layout
+    UI/Layout/UnityLayoutManager.h
+    UI/Layout/UnityLayoutManager.cpp
+    
+    # UI System - Legacy
+    UI/Legacy/MaterialEditorUI.h
+    UI/Legacy/MaterialEditorUI.cpp
+    UI/Legacy/TabbedPanel.h
+    UI/Legacy/TabbedPanel.cpp
     
     # Platform
     Platform/Platform.h

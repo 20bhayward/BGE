@@ -1,7 +1,7 @@
 #pragma once
 
-#include "TabbedPanel.h"
-#include "LayoutInfo.h"
+#include "../Legacy/TabbedPanel.h"
+#include "../Framework/LayoutInfo.h"
 #include <unordered_map>
 #include <memory>
 #include <string>

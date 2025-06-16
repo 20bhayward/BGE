@@ -15,7 +15,7 @@
 #include "../Renderer/ParticleSystem.h" // Added for ParticleSystem service
 #include "../Audio/AudioSystem.h"
 #include "../AssetPipeline/AssetManager.h"
-#include "UI/UISystem.h"
+#include "UI/Framework/UISystem.h"
 
 #include <chrono>
 #include <filesystem>

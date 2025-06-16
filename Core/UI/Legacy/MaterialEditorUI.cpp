@@ -1,20 +1,22 @@
 #include "MaterialEditorUI.h"
-#include "UISystem.h"
-#include "../Input/MaterialTools.h"
-#include "../../Simulation/SimulationWorld.h"
-#include "../../Simulation/Materials/MaterialSystem.h"
-#include "../Services.h"
-#include "../../Renderer/PostProcessor.h"
-#include "../../Renderer/Renderer.h"
-#include "../../Renderer/ParticleSystem.h"
-#include "../../Renderer/PixelCamera.h"
-#include "AssetBrowserPanel.h"
-#include "GameViewportPanel.h"
-#include "InspectorPanel.h"
-#include "HierarchyPanel.h"
-#include "MaterialPalettePanel.h"
-#include "DockingSystem.h"
-#include "DockNode.h"
+#include "../Framework/UISystem.h"
+#include "../../Input/MaterialTools.h"
+#include "../../../Simulation/SimulationWorld.h"
+#include "../../../Simulation/Materials/MaterialSystem.h"
+#include "../../Services.h"
+#include "../../../Renderer/PostProcessor.h"
+#include "../../../Renderer/Renderer.h"
+#include "../../../Renderer/ParticleSystem.h"
+#include "../../../Renderer/PixelCamera.h"
+#include "../Panels/AssetBrowserPanel.h"
+#include "../Panels/GameViewportPanel.h"
+#include "../Panels/InspectorPanel.h"
+#include "../Panels/HierarchyPanel.h"
+#include "../Panels/MaterialPalettePanel.h"
+#include "../Panels/MaterialEditorPanel.h"
+#include "../Panels/ConsolePanel.h"
+#include "../Docking/DockingSystem.h"
+#include "../Docking/DockNode.h"
 
 #include <imgui.h>
 #include <iostream>
@@ -28,7 +30,7 @@ void MaterialEditorUI::Initialize(MaterialTools* tools, SimulationWorld* world) 
     m_materialTools = tools;
     m_world = world;
     
-    // Get the UI system to register panels with docking support
+    // Get the UI system to register panels with custom docking support
     auto uiSystem = Services::GetUI();
     if (!uiSystem) {
         std::cerr << "Failed to get UISystem service" << std::endl;
@@ -37,7 +39,7 @@ void MaterialEditorUI::Initialize(MaterialTools* tools, SimulationWorld* world) 
     
     auto& docking = uiSystem->GetDockingSystem();
     
-    // Create panels manually and add them to specific dock areas
+    // Create panels and add them to specific dock areas
     m_hierarchyPanel = std::make_shared<HierarchyPanel>("Hierarchy", m_world);
     m_hierarchyPanel->Initialize();
     docking.AddPanel(m_hierarchyPanel, "left");
@@ -58,10 +60,17 @@ void MaterialEditorUI::Initialize(MaterialTools* tools, SimulationWorld* world) 
     m_materialPalettePanel->Initialize();
     docking.AddPanel(m_materialPalettePanel, "bottom");
     
-    // Set up default Unity-style layout
-    SetupDefaultLayout();
+    // Add Material Editor panel as placeholder
+    auto materialEditorPanel = std::make_shared<MaterialEditorPanel>("MaterialEditor", m_materialTools);
+    materialEditorPanel->Initialize();
+    docking.AddPanel(materialEditorPanel, "inspector");
     
-    std::cout << "MaterialEditorUI initialized with Unity-style docking layout!" << std::endl;
+    // Add Console panel as placeholder
+    auto consolePanel = std::make_shared<ConsolePanel>("Console");
+    consolePanel->Initialize();
+    docking.AddPanel(consolePanel, "bottom");
+    
+    std::cout << "MaterialEditorUI initialized with custom docking and placeholder panels" << std::endl;
 }
 
 void MaterialEditorUI::Shutdown() {
@@ -80,13 +89,17 @@ void MaterialEditorUI::Render() {
     
     RenderMainMenuBar();
     
-    // The UISystem handles all panel rendering through its docking system
-    // We don't need to manually render panels anymore
+    // Render the custom docking system (which handles all panel rendering)
+    auto uiSystem = Services::GetUI();
+    if (uiSystem) {
+        uiSystem->BeginDockspace();
+    }
     
     if (m_showDemoWindow) {
         ImGui::ShowDemoWindow(&m_showDemoWindow);
     }
 }
+
 
 void MaterialEditorUI::RenderMainMenuBar() {
     if (ImGui::BeginMainMenuBar()) {
@@ -118,27 +131,10 @@ void MaterialEditorUI::RenderMainMenuBar() {
             ImGui::EndMenu();
         }
         
-        if (ImGui::BeginMenu("Window")) {
-            // Panel visibility toggles
-            if (ImGui::MenuItem("Hierarchy", nullptr, m_hierarchyPanel->IsVisible())) {
-                m_hierarchyPanel->ToggleVisible();
-            }
-            
-            if (ImGui::MenuItem("Game View", nullptr, m_gameViewportPanel->IsVisible())) {
-                m_gameViewportPanel->ToggleVisible();
-            }
-            
-            if (ImGui::MenuItem("Inspector", nullptr, m_inspectorPanel->IsVisible())) {
-                m_inspectorPanel->ToggleVisible();
-            }
-            
-            if (ImGui::MenuItem("Asset Browser", nullptr, m_assetBrowserPanel->IsVisible())) {
-                m_assetBrowserPanel->ToggleVisible();
-            }
-            
-            ImGui::Separator();
-            ImGui::MenuItem("ImGui Demo", nullptr, &m_showDemoWindow);
-            ImGui::EndMenu();
+        auto uiSystem = Services::GetUI();
+        if (uiSystem) {
+            uiSystem->RenderLayoutMenu();
+            uiSystem->RenderWindowsMenu();
         }
         
         if (ImGui::BeginMenu("Tools")) {

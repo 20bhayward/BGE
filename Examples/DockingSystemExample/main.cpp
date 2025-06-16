@@ -1,14 +1,14 @@
 #include "../../Core/Engine.h"
 #include "../../Core/Application.h"
 #include "../../Core/Services.h"
-#include "../../Core/UI/UISystem.h"
+#include "../../Core/UI/Framework/UISystem.h"
 
 // Example panels
-#include "../../Core/UI/HierarchyPanel.h"
-#include "../../Core/UI/InspectorPanel.h"
-#include "../../Core/UI/SceneViewPanel.h"
-#include "../../Core/UI/AssetBrowserPanel.h"
-#include "../../Core/UI/MaterialPalettePanel.h"
+#include "../../Core/UI/Panels/HierarchyPanel.h"
+#include "../../Core/UI/Panels/InspectorPanel.h"
+#include "../../Core/UI/Panels/SceneViewPanel.h"
+#include "../../Core/UI/Panels/AssetBrowserPanel.h"
+#include "../../Core/UI/Panels/MaterialPalettePanel.h"
 
 using namespace BGE;
 
