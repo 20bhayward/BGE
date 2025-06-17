@@ -352,15 +352,47 @@ void Renderer::RenderParticles() {
 
 // Asset management functions for texture handling
 uint32_t Renderer::CreateTexture(int width, int height, int channels, const void* data) {
-    (void)width; (void)height; (void)channels; (void)data; // Suppress unused parameter warnings
-    uint32_t textureId = m_nextTextureId++;
-    // BGE_LOG_INFO("Renderer", "CreateTexture called: ID " + std::to_string(textureId) + ", Size " + std::to_string(width) + "x" + std::to_string(height) + ", Channels " + std::to_string(channels));
-    // In a real renderer:
-    // - glGenTextures(1, &textureId);
-    // - glBindTexture(GL_TEXTURE_2D, textureId);
-    // - glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-    // - Set texture parameters (filtering, wrapping)
-    return textureId; // Return a dummy ID
+    BGE_LOG_INFO("Renderer", "CreateTexture called: Size " + std::to_string(width) + "x" + std::to_string(height) + ", Channels " + std::to_string(channels));
+    
+    uint32_t textureId;
+    glGenTextures(1, &textureId);
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    
+    GLenum format = GL_RGBA;
+    GLenum internalFormat = GL_RGBA;
+    
+    switch (channels) {
+        case 1:
+            format = GL_RED;
+            internalFormat = GL_RED;
+            break;
+        case 3:
+            format = GL_RGB;
+            internalFormat = GL_RGB;
+            break;
+        case 4:
+            format = GL_RGBA;
+            internalFormat = GL_RGBA;
+            break;
+        default:
+            BGE_LOG_ERROR("Renderer", "Unsupported channel count: " + std::to_string(channels));
+            glDeleteTextures(1, &textureId);
+            return 0;
+    }
+    
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+    
+    // Set texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    
+    // Unbind texture
+    glBindTexture(GL_TEXTURE_2D, 0);
+    
+    BGE_LOG_INFO("Renderer", "Created texture ID: " + std::to_string(textureId));
+    return textureId;
 }
 
 void Renderer::UpdateTexture(uint32_t textureId, int width, int height, int channels, const void* data) {
@@ -372,10 +404,10 @@ void Renderer::UpdateTexture(uint32_t textureId, int width, int height, int chan
 }
 
 void Renderer::DeleteTexture(uint32_t textureId) {
-    (void)textureId; // Suppress unused parameter warning
-    // BGE_LOG_INFO("Renderer", "DeleteTexture called: ID " + std::to_string(textureId));
-    // In a real renderer:
-    // - glDeleteTextures(1, &textureId);
+    if (textureId != 0) {
+        BGE_LOG_INFO("Renderer", "DeleteTexture called: ID " + std::to_string(textureId));
+        glDeleteTextures(1, &textureId);
+    }
 }
 
 bool Renderer::CreateGameFramebuffer(int width, int height) {

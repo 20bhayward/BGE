@@ -7,10 +7,12 @@
 #include "../../Components.h"
 #include "../../Math/Vector2.h"
 #include "../../Math/Vector3.h"
+#include "../../AssetTypes.h"
 #include <vector>
 #include <unordered_set>
 #include <string>
 #include <memory>
+#include <filesystem>
 
 namespace BGE {
 
@@ -27,16 +29,24 @@ private:
     void RegisterEventListeners();
     void UnregisterEventListeners();
     void OnEntitySelectionChanged(const EntitySelectionChangedEvent& event);
+    void OnAssetSelectionChanged(const AssetSelectionChangedEvent& event);
     void OnMaterialHover(const MaterialHoverEvent& event);
     
     // Component rendering
     void RenderEntityInspector();
     void RenderMaterialInspector();
+    void RenderAssetInspector();
     void RenderMultiSelectionHeader();
     void RenderSingleEntityHeader(EntityID entityId);
     void RenderComponentList(EntityID entityId);
     void RenderAddComponentButton(EntityID entityId);
     void RenderAddComponentPopup();
+    
+    // Asset thumbnail methods
+    void LoadTexturePreview(const std::string& path);
+    void SetCustomThumbnailForAsset(const std::string& assetPath);
+    void RemoveCustomThumbnailForAsset(const std::string& assetPath);
+    std::string OpenNativeFileDialog();
     
     // Individual component renderers
     void RenderTransformComponent(Entity* entity, TransformComponent* component);
@@ -95,6 +105,16 @@ private:
     std::string m_hoveredMaterialName;
     std::string m_hoveredMaterialType;
     std::vector<std::string> m_hoveredMaterialTags;
+    
+    // Asset inspector state
+    bool m_assetInspectorMode = false;
+    std::string m_selectedAssetPath;
+    AssetType m_selectedAssetType = AssetType::Unknown;
+    char m_assetNameBuffer[256] = {0};
+    
+    // Asset thumbnail management
+    std::unordered_map<std::string, uint32_t> m_assetThumbnails; // Per-asset custom thumbnails
+    uint32_t m_currentAssetTextureId = 0; // Currently loaded texture for preview
 };
 
 } // namespace BGE

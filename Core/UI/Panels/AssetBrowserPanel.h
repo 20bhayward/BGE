@@ -3,6 +3,9 @@
 #include "../Framework/Panel.h"
 #include "../../EventBus.h"
 #include "../../AssetTypes.h"
+#include "../../../AssetPipeline/AssetHandle.h"
+#include "../../../AssetPipeline/AssetManager.h"
+#include "../IconManager.h"
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -12,23 +15,20 @@
 
 namespace BGE {
 
-// Asset info structure
+// Asset info using the new asset system
 struct AssetInfo {
     std::string path;
     std::string name;
     std::string extension;
     AssetType type;
+    AssetHandle handle;
     size_t fileSize;
     std::filesystem::file_time_type lastModified;
     bool isDirectory;
     
     // Cached data
-    bool thumbnailLoaded = false;
-    uint32_t thumbnailTexture = 0;
     std::string metadata;
 };
-
-// AssetSelectionChangedEvent is included from AssetTypes.h
 
 class AssetBrowserPanel : public Panel {
 public:
@@ -47,6 +47,7 @@ private:
     // Event handling
     void RegisterEventListeners();
     void UnregisterEventListeners();
+    void OnAssetReloaded(const AssetReloadedEvent& event);
     
     // UI Rendering
     void RenderToolbar();
@@ -63,7 +64,8 @@ private:
     // Asset grid
     void RenderAssetGrid();
     void RenderAssetIcon(const AssetInfo& asset, const ImVec2& iconSize);
-    void RenderAssetContextMenu(const AssetInfo& asset);
+    void RenderAssetContextMenu();
+    void RenderAssetMenuContent();
     void RenderCreateContextMenu();
     
     // File system operations
@@ -72,17 +74,29 @@ private:
     bool CreateFolder(const std::string& name);
     bool CreateAsset(const std::string& name, AssetType type);
     bool DeleteAsset(const std::string& path);
+    bool DeleteAssets(const std::vector<std::string>& paths);
     bool RenameAsset(const std::string& oldPath, const std::string& newName);
     bool DuplicateAsset(const std::string& path);
     bool MoveAsset(const std::string& srcPath, const std::string& dstDirectory);
     
+    // Professional asset management
+    std::string GenerateUniqueAssetName(const std::string& baseName, const std::string& directory = "");
+    std::string GenerateUniqueAssetNameGlobally(const std::string& baseName);
+    bool ValidateAssetName(const std::string& name, bool isDirectory = false);
+    void NotifyAssetSystemOfChanges(const std::string& assetPath, const std::string& operation);
+    
+    // Clipboard operations
+    void CopyAssets(const std::vector<std::string>& assetPaths);
+    void CutAssets(const std::vector<std::string>& assetPaths);
+    void PasteAssets(const std::string& destinationDirectory);
+    bool CanPaste() const;
+    void ClearClipboard();
+    
     // Asset type detection
     AssetType GetAssetType(const std::string& path) const;
-    std::string GetAssetIconText(AssetType type) const;
     
-    // Thumbnail management
-    void LoadThumbnail(AssetInfo& asset);
-    uint32_t GetDefaultIcon(AssetType type) const;
+    // Icon management
+    uint32_t GetAssetIcon(AssetType type) const;
     
     // Selection and events
     void SelectAsset(const std::string& path);
@@ -93,9 +107,10 @@ private:
     void BeginDragAsset(const AssetInfo& asset);
     
     // File system monitoring
-    void StartFileSystemWatcher();
-    void StopFileSystemWatcher();
     void CheckFileSystemChanges();
+    
+    // Input handling
+    void HandleKeyboardShortcuts();
     
     // Project paths
     std::string m_projectRoot;
@@ -107,6 +122,7 @@ private:
     float m_iconSize = 64.0f;
     int m_gridColumns = 4;
     bool m_showHiddenFiles = false;
+    bool m_showMetaFiles = false;
     
     // Assets and directories
     std::vector<AssetInfo> m_currentAssets;
@@ -125,21 +141,32 @@ private:
     bool m_showCreateMenu = false;
     bool m_showAssetMenu = false;
     std::string m_contextMenuAsset;
+    std::vector<std::string> m_selectedAssetsForMenu;
     
     // Rename state
     bool m_renameMode = false;
     char m_renameBuffer[256] = "";
     std::string m_renamingAsset;
+    bool m_renameInputWasActive = false;
+    
+    // Drag and drop state
+    bool m_isDragging = false;
+    std::string m_draggedAsset;
+    AssetInfo m_draggedAssetInfo;
+    
+    // Clipboard system
+    enum class ClipboardOperation { None, Copy, Cut };
+    ClipboardOperation m_clipboardOperation = ClipboardOperation::None;
+    std::vector<std::string> m_clipboardAssets;
     
     // File system monitoring
     std::chrono::steady_clock::time_point m_lastRefresh;
     static constexpr float REFRESH_INTERVAL = 2.0f; // seconds
     
-    // Event bus
+    // Services
     EventBus* m_eventBus = nullptr;
-    
-    // Icon cache
-    std::unordered_map<AssetType, uint32_t> m_iconCache;
+    AssetManager* m_assetManager = nullptr;
+    IconManager* m_iconManager = nullptr;
 };
 
 } // namespace BGE

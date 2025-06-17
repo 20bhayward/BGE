@@ -1,10 +1,20 @@
 #include "InspectorPanel.h"
+#include "ProjectSettingsPanel.h"
 #include "../../Services.h"
 #include "../../ServiceLocator.h"
 #include "../../Entity.h"
+#include "../../../Renderer/Renderer.h"
+#include "../../../AssetPipeline/AssetManager.h"
+#include "../../../ThirdParty/stb/stb_image.h"
 #include <imgui.h>
 #include <iostream>
 #include <algorithm>
+#include <filesystem>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <commdlg.h>
+#endif
 
 namespace BGE {
 
@@ -42,6 +52,10 @@ void InspectorPanel::RegisterEventListeners() {
             OnEntitySelectionChanged(event);
         });
         
+        m_eventBus->Subscribe<AssetSelectionChangedEvent>([this](const AssetSelectionChangedEvent& event) {
+            OnAssetSelectionChanged(event);
+        });
+        
         m_eventBus->Subscribe<MaterialHoverEvent>([this](const MaterialHoverEvent& event) {
             OnMaterialHover(event);
         });
@@ -57,9 +71,42 @@ void InspectorPanel::OnEntitySelectionChanged(const EntitySelectionChangedEvent&
     m_primarySelection = event.primarySelection;
     ClearInconsistentProperties();
     
-    // Exit material inspector mode when an entity is selected
+    // Exit material and asset inspector modes when an entity is selected
     if (!m_selectedEntities.empty()) {
         m_materialInspectorMode = false;
+        m_assetInspectorMode = false;
+    }
+}
+
+void InspectorPanel::OnAssetSelectionChanged(const AssetSelectionChangedEvent& event) {
+    // Clean up previous texture preview if switching assets
+    if (m_currentAssetTextureId != 0) {
+        auto renderer = Services::GetRenderer();
+        if (renderer) {
+            renderer->DeleteTexture(m_currentAssetTextureId);
+        }
+        m_currentAssetTextureId = 0;
+    }
+    
+    if (!event.selectedAssetPath.empty()) {
+        // Clear entity selection when an asset is selected
+        m_selectedEntities.clear();
+        m_primarySelection = INVALID_ENTITY_ID;
+        m_materialInspectorMode = false;
+        
+        // Enter asset inspector mode
+        m_assetInspectorMode = true;
+        m_selectedAssetPath = event.selectedAssetPath;
+        m_selectedAssetType = event.selectedAssetType;
+        
+        // Initialize asset name buffer for renaming
+        std::filesystem::path assetPath(event.selectedAssetPath);
+        std::string assetName = assetPath.stem().string();
+        strncpy(m_assetNameBuffer, assetName.c_str(), sizeof(m_assetNameBuffer) - 1);
+        m_assetNameBuffer[sizeof(m_assetNameBuffer) - 1] = '\0';
+    } else {
+        // Asset deselected
+        m_assetInspectorMode = false;
     }
 }
 
@@ -82,7 +129,9 @@ void InspectorPanel::OnRender() {
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 3));
     
     // Choose which inspector mode to render
-    if (m_materialInspectorMode) {
+    if (m_assetInspectorMode) {
+        RenderAssetInspector();
+    } else if (m_materialInspectorMode) {
         RenderMaterialInspector();
     } else {
         RenderEntityInspector();
@@ -117,6 +166,195 @@ void InspectorPanel::RenderMaterialInspector() {
     
     ImGui::Spacing();
     ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "Hover over materials in Scene View to inspect them.");
+}
+
+void InspectorPanel::RenderAssetInspector() {
+    if (m_selectedAssetPath.empty()) {
+        ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "No asset selected");
+        return;
+    }
+    
+    std::filesystem::path assetPath(m_selectedAssetPath);
+    std::string assetName = assetPath.stem().string();
+    std::string extension = assetPath.extension().string();
+    
+    // Asset header with icon
+    std::string typeIcon = "📄";
+    switch (m_selectedAssetType) {
+        case AssetType::Texture: typeIcon = "🖼️"; break;
+        case AssetType::Material: typeIcon = "🎨"; break;
+        case AssetType::Scene: typeIcon = "🌍"; break;
+        case AssetType::Audio: typeIcon = "🔊"; break;
+        case AssetType::Script: typeIcon = "📜"; break;
+        case AssetType::Prefab: typeIcon = "🧩"; break;
+        case AssetType::Folder: typeIcon = "📁"; break;
+        default: typeIcon = "📄"; break;
+    }
+    
+    ImGui::Text("%s Asset Inspector", typeIcon.c_str());
+    ImGui::Separator();
+    
+    // Asset name (editable)
+    ImGui::Text("Name:");
+    ImGui::SetNextItemWidth(-1.0f);
+    if (ImGui::InputText("##AssetName", m_assetNameBuffer, sizeof(m_assetNameBuffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
+        // Handle rename
+        std::string newName = m_assetNameBuffer;
+        if (!newName.empty() && newName != assetName) {
+            std::string newPath = assetPath.parent_path().string() + "/" + newName + extension;
+            try {
+                std::filesystem::rename(m_selectedAssetPath, newPath);
+                m_selectedAssetPath = newPath;
+            } catch (const std::exception& e) {
+                std::cerr << "Failed to rename asset: " << e.what() << std::endl;
+            }
+        }
+    }
+    
+    // Asset properties
+    ImGui::Spacing();
+    ImGui::Text("Type: %s", extension.c_str());
+    ImGui::Text("Path: %s", m_selectedAssetPath.c_str());
+    
+    // File size
+    try {
+        if (std::filesystem::exists(m_selectedAssetPath)) {
+            auto fileSize = std::filesystem::file_size(m_selectedAssetPath);
+            if (fileSize < 1024) {
+                ImGui::Text("Size: %zu bytes", fileSize);
+            } else if (fileSize < 1024 * 1024) {
+                ImGui::Text("Size: %.2f KB", fileSize / 1024.0);
+            } else {
+                ImGui::Text("Size: %.2f MB", fileSize / (1024.0 * 1024.0));
+            }
+        }
+    } catch (const std::exception&) {
+        ImGui::Text("Size: Unknown");
+    }
+    
+    ImGui::Spacing();
+    ImGui::Separator();
+    
+    // Custom thumbnail section
+    ImGui::Text("Thumbnail:");
+    
+    // Use the same hybrid lookup system as AssetBrowser
+    uint32_t thumbnailId = 0;
+    auto projectSettings = Services::GetProjectSettings();
+    
+    if (projectSettings) {
+        // First try to get asset handle for current asset
+        AssetHandle assetHandle;
+        auto assetManager = ServiceLocator::Instance().GetService<AssetManager>();
+        if (assetManager) {
+            assetHandle = assetManager->GetRegistry().GetAssetHandle(m_selectedAssetPath);
+        }
+        
+        // First check for individual asset thumbnail using asset handle
+        if (assetHandle.IsValid()) {
+            thumbnailId = projectSettings->GetIndividualAssetThumbnail(assetHandle);
+        }
+        
+        // If no thumbnail found by handle, try path-based lookup (for moved/recreated assets)
+        if (thumbnailId == 0) {
+            thumbnailId = projectSettings->GetIndividualAssetThumbnailByPath(m_selectedAssetPath);
+            
+            // If found by path but not by handle, restore the mapping
+            if (thumbnailId != 0 && assetHandle.IsValid()) {
+                projectSettings->RestoreThumbnailFromPath(assetHandle, m_selectedAssetPath);
+            }
+        }
+    }
+    
+    // If no custom thumbnail, check for texture preview or type-based thumbnail
+    if (thumbnailId == 0) {
+        if (m_selectedAssetType == AssetType::Texture) {
+            // For texture assets, load and show the texture itself
+            if (m_currentAssetTextureId == 0) {
+                LoadTexturePreview(m_selectedAssetPath);
+            }
+            thumbnailId = m_currentAssetTextureId;
+        } else {
+            // Use default thumbnail from ProjectSettings
+            if (projectSettings) {
+                thumbnailId = projectSettings->GetAssetTypeThumbnailTexture(m_selectedAssetType);
+            }
+        }
+    }
+    
+    // Display thumbnail
+    if (thumbnailId != 0) {
+        ImGui::Image(static_cast<ImTextureID>(static_cast<uintptr_t>(thumbnailId)), ImVec2(128, 128));
+    } else {
+        ImGui::Button("No Thumbnail", ImVec2(128, 128));
+    }
+    
+    ImGui::SameLine();
+    ImGui::BeginGroup();
+    
+    if (ImGui::Button("Set Custom Thumbnail")) {
+        SetCustomThumbnailForAsset(m_selectedAssetPath);
+    }
+    
+    // Check if asset has custom thumbnail using the same logic as thumbnail display
+    bool hasCustomThumbnail = false;
+    if (projectSettings) {
+        AssetHandle assetHandle;
+        auto assetManager = ServiceLocator::Instance().GetService<AssetManager>();
+        if (assetManager) {
+            assetHandle = assetManager->GetRegistry().GetAssetHandle(m_selectedAssetPath);
+        }
+        
+        if (assetHandle.IsValid()) {
+            hasCustomThumbnail = (projectSettings->GetIndividualAssetThumbnail(assetHandle) != 0);
+        }
+        
+        if (!hasCustomThumbnail) {
+            hasCustomThumbnail = (projectSettings->GetIndividualAssetThumbnailByPath(m_selectedAssetPath) != 0);
+        }
+    }
+    
+    if (hasCustomThumbnail) {
+        if (ImGui::Button("Remove Custom")) {
+            RemoveCustomThumbnailForAsset(m_selectedAssetPath);
+        }
+    }
+    
+    ImGui::EndGroup();
+    
+    ImGui::Spacing();
+    ImGui::Separator();
+    
+    // Type-specific properties
+    switch (m_selectedAssetType) {
+        case AssetType::Texture:
+            ImGui::Text("🖼️ Texture Properties");
+            ImGui::Text("Format: %s", extension.c_str());
+            if (m_currentAssetTextureId != 0) {
+                // TODO: Get actual texture dimensions
+                ImGui::Text("Preview shown above");
+            }
+            break;
+            
+        case AssetType::Material:
+            ImGui::Text("🎨 Material Properties");
+            // TODO: Load and display material JSON properties
+            break;
+            
+        case AssetType::Scene:
+            ImGui::Text("🌍 Scene Properties");
+            // TODO: Load and display scene info
+            break;
+            
+        case AssetType::Audio:
+            ImGui::Text("🔊 Audio Properties");
+            // TODO: Add audio duration, format info
+            break;
+            
+        default:
+            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "No additional properties available");
+            break;
+    }
 }
 
 void InspectorPanel::RenderEntityInspector() {
@@ -812,7 +1050,7 @@ bool InspectorPanel::InputUInt(const char* label, uint32_t* value) {
     
     int intValue = static_cast<int>(*value);
     if (ImGui::DragInt(label, &intValue, 1.0f, 0)) {
-        *value = static_cast<uint32_t>(std::max(0, intValue));
+        *value = static_cast<uint32_t>((std::max)(0, intValue));
         return true;
     }
     return false;
@@ -933,6 +1171,138 @@ void InspectorPanel::RenderRigidbodyComponent(Entity* entity, RigidbodyComponent
     
     ImGui::TreePop(); // Match the TreeNodeEx in RenderComponentHeader
     ImGui::Spacing();
+}
+
+void InspectorPanel::LoadTexturePreview(const std::string& path) {
+    // Clean up previous texture
+    if (m_currentAssetTextureId != 0) {
+        auto renderer = Services::GetRenderer();
+        if (renderer) {
+            renderer->DeleteTexture(m_currentAssetTextureId);
+        }
+        m_currentAssetTextureId = 0;
+    }
+    
+    // Load new texture
+    int width, height, channels;
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, 4);
+    
+    if (!data) {
+        std::cerr << "Failed to load texture preview: " << path << std::endl;
+        return;
+    }
+    
+    auto renderer = Services::GetRenderer();
+    if (renderer) {
+        m_currentAssetTextureId = renderer->CreateTexture(width, height, 4, data);
+    }
+    
+    stbi_image_free(data);
+}
+
+void InspectorPanel::SetCustomThumbnailForAsset(const std::string& assetPath) {
+    std::string thumbnailPath = OpenNativeFileDialog();
+    if (thumbnailPath.empty()) {
+        return;
+    }
+    
+    // Get asset handle from asset manager
+    auto assetManager = ServiceLocator::Instance().GetService<AssetManager>();
+    if (!assetManager) {
+        std::cerr << "Asset manager not available" << std::endl;
+        return;
+    }
+    
+    AssetHandle assetHandle = assetManager->GetRegistry().GetAssetHandle(assetPath);
+    if (!assetHandle.IsValid()) {
+        std::cerr << "No valid asset handle for path: " << assetPath << std::endl;
+        return;
+    }
+    
+    // Load the thumbnail
+    int width, height, channels;
+    unsigned char* data = stbi_load(thumbnailPath.c_str(), &width, &height, &channels, 4);
+    
+    if (!data) {
+        std::cerr << "Failed to load thumbnail: " << thumbnailPath << std::endl;
+        return;
+    }
+    
+    auto renderer = Services::GetRenderer();
+    if (renderer) {
+        // Clean up old thumbnail if exists
+        auto it = m_assetThumbnails.find(assetPath);
+        if (it != m_assetThumbnails.end() && it->second != 0) {
+            renderer->DeleteTexture(it->second);
+        }
+        
+        // Create new thumbnail texture
+        uint32_t textureId = renderer->CreateTexture(width, height, 4, data);
+        m_assetThumbnails[assetPath] = textureId;
+        
+        // Register with ProjectSettings using AssetHandle
+        auto projectSettings = Services::GetProjectSettings();
+        if (projectSettings) {
+            projectSettings->SetIndividualAssetThumbnail(assetHandle, assetPath, textureId, thumbnailPath);
+            // Save immediately - no need to go to Project Settings
+            projectSettings->SaveProjectSettings();
+        }
+    }
+    
+    stbi_image_free(data);
+}
+
+void InspectorPanel::RemoveCustomThumbnailForAsset(const std::string& assetPath) {
+    auto it = m_assetThumbnails.find(assetPath);
+    if (it != m_assetThumbnails.end()) {
+        if (it->second != 0) {
+            auto renderer = Services::GetRenderer();
+            if (renderer) {
+                renderer->DeleteTexture(it->second);
+            }
+        }
+        m_assetThumbnails.erase(it);
+        
+        // Remove from ProjectSettings using AssetHandle
+        auto assetManager = ServiceLocator::Instance().GetService<AssetManager>();
+        auto projectSettings = Services::GetProjectSettings();
+        if (assetManager && projectSettings) {
+            AssetHandle assetHandle = assetManager->GetRegistry().GetAssetHandle(assetPath);
+            if (assetHandle.IsValid()) {
+                projectSettings->RemoveIndividualAssetThumbnail(assetHandle);
+                // Save immediately
+                projectSettings->SaveProjectSettings();
+            }
+        }
+    }
+}
+
+std::string InspectorPanel::OpenNativeFileDialog() {
+#ifdef _WIN32
+    OPENFILENAMEA ofn;
+    char szFile[260] = {0};
+    
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.lpstrFile = szFile;
+    ofn.nMaxFile = sizeof(szFile);
+    ofn.lpstrFilter = "Image Files\0*.png;*.jpg;*.jpeg;*.bmp;*.tga\0PNG Files\0*.png\0JPEG Files\0*.jpg;*.jpeg\0BMP Files\0*.bmp\0TGA Files\0*.tga\0All Files\0*.*\0";
+    ofn.nFilterIndex = 1;
+    ofn.lpstrFileTitle = nullptr;
+    ofn.nMaxFileTitle = 0;
+    ofn.lpstrInitialDir = nullptr;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+    
+    if (GetOpenFileNameA(&ofn)) {
+        return std::string(szFile);
+    }
+    
+    return "";
+#else
+    // For non-Windows platforms
+    std::cerr << "Native file dialog not implemented for this platform" << std::endl;
+    return "";
+#endif
 }
 
 } // namespace BGE

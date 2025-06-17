@@ -9,6 +9,7 @@
 #include "../../Core/UI/Panels/SceneViewPanel.h"
 #include "../../Core/UI/Panels/AssetBrowserPanel.h"
 #include "../../Core/UI/Panels/MaterialPalettePanel.h"
+#include "../../Core/UI/Panels/ProjectSettingsPanel.h"
 
 using namespace BGE;
 
@@ -28,6 +29,7 @@ public:
         uiSystem->RegisterPanel<SceneViewPanel>("Scene");
         uiSystem->RegisterPanel<AssetBrowserPanel>("Assets");
         uiSystem->RegisterPanel<MaterialPalettePanel>("Materials");
+        uiSystem->RegisterPanel<ProjectSettingsPanel>("Project Settings");
         
         std::cout << "=== Unity-Style Docking System Demo ===" << std::endl;
         std::cout << "Instructions:" << std::endl;
@@ -52,6 +54,20 @@ public:
             
             // Create main menu bar
             if (ImGui::BeginMainMenuBar()) {
+                if (ImGui::BeginMenu("Project")) {
+                    if (ImGui::MenuItem("Settings", "Ctrl+,")) {
+                        uiSystem->GetDockingSystem().TogglePanel("Project Settings");
+                    }
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("New Project")) {
+                        // TODO: Implement new project creation
+                    }
+                    if (ImGui::MenuItem("Open Project")) {
+                        // TODO: Implement project opening
+                    }
+                    ImGui::EndMenu();
+                }
+                
                 if (ImGui::BeginMenu("Window")) {
                     if (ImGui::MenuItem("Reset Layout")) {
                         uiSystem->GetDockingSystem().ResetToDefaultLayout();
@@ -67,6 +83,9 @@ public:
                     }
                     if (ImGui::MenuItem("Scene")) {
                         uiSystem->GetDockingSystem().TogglePanel("Scene");
+                    }
+                    if (ImGui::MenuItem("Assets")) {
+                        uiSystem->GetDockingSystem().TogglePanel("Assets");
                     }
                     if (ImGui::MenuItem("Materials")) {
                         uiSystem->GetDockingSystem().TogglePanel("Materials");

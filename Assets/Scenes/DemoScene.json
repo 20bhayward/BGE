@@ -1,0 +1,33 @@
+{
+  "entities": [
+    {
+      "name": "Main Camera",
+      "components": {
+        "Transform": {
+          "position": [0, 0, 10],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1]
+        }
+      }
+    },
+    {
+      "name": "Directional Light",
+      "components": {
+        "Transform": {
+          "position": [0, 10, 5],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1]
+        },
+        "Light": {
+          "type": "directional",
+          "color": [1.0, 1.0, 1.0],
+          "intensity": 1.0
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "version": 1,
+    "description": "A simple demo scene for the falling sand engine"
+  }
+}
