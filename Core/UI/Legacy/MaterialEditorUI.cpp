@@ -9,6 +9,7 @@
 #include "../../../Renderer/ParticleSystem.h"
 #include "../../../Renderer/PixelCamera.h"
 #include "../Panels/AssetBrowserPanel.h"
+#include "../Panels/ProjectSettingsPanel.h"
 #include "../Panels/GameViewportPanel.h"
 #include "../Panels/InspectorPanel.h"
 #include "../Panels/HierarchyPanel.h"
@@ -56,6 +57,8 @@ void MaterialEditorUI::Initialize(MaterialTools* tools, SimulationWorld* world) 
     m_inspectorPanel->Initialize();
     docking.AddPanel(m_inspectorPanel, "inspector");
     
+    // Asset inspection is now integrated into the main InspectorPanel
+    
     m_materialPalettePanel = std::make_shared<MaterialPalettePanel>("Materials", m_materialTools);
     m_materialPalettePanel->Initialize();
     docking.AddPanel(m_materialPalettePanel, "bottom");
@@ -69,6 +72,13 @@ void MaterialEditorUI::Initialize(MaterialTools* tools, SimulationWorld* world) 
     auto consolePanel = std::make_shared<ConsolePanel>("Console");
     consolePanel->Initialize();
     docking.AddPanel(consolePanel, "bottom");
+    
+    // Create Project Settings panel as standalone window (not docked)
+    m_projectSettingsPanel = std::make_unique<ProjectSettingsPanel>("Project Settings");
+    m_projectSettingsPanel->Initialize();
+    
+    // Register with Services so other panels can access it
+    Services::SetProjectSettings(m_projectSettingsPanel.get());
     
     std::cout << "MaterialEditorUI initialized with custom docking and placeholder panels" << std::endl;
 }
@@ -98,14 +108,25 @@ void MaterialEditorUI::Render() {
     if (m_showDemoWindow) {
         ImGui::ShowDemoWindow(&m_showDemoWindow);
     }
+    
+    // Render standalone windows
+    if (m_projectSettingsPanel) {
+        m_projectSettingsPanel->Render();
+    }
 }
 
 
 void MaterialEditorUI::RenderMainMenuBar() {
     if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
+        if (ImGui::BeginMenu("Project")) {
             if (ImGui::MenuItem("New Scene")) {
                 m_world->Clear();
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Settings", "Ctrl+,")) {
+                if (m_projectSettingsPanel) {
+                    m_projectSettingsPanel->Show();
+                }
             }
             ImGui::Separator();
             if (ImGui::MenuItem("Exit", "Alt+F4")) {

@@ -6,6 +6,7 @@
 #include "../AssetPipeline/AssetManager.h"
 #include "UI/Framework/UISystem.h"
 #include "../Renderer/ParticleSystem.h" // Include ParticleSystem header
+#include "UI/Panels/ProjectSettingsPanel.h"
 
 namespace BGE {
 
@@ -37,6 +38,16 @@ std::shared_ptr<UISystem> GetUI() {
 
 std::shared_ptr<ParticleSystem> GetParticles() {
     return ServiceLocator::Instance().GetService<ParticleSystem>();
+}
+
+static ProjectSettingsPanel* g_projectSettings = nullptr;
+
+ProjectSettingsPanel* GetProjectSettings() {
+    return g_projectSettings;
+}
+
+void SetProjectSettings(ProjectSettingsPanel* settings) {
+    g_projectSettings = settings;
 }
 
 } // namespace Services

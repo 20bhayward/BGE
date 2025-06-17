@@ -94,6 +94,8 @@ add_library(BGECore STATIC
     # UI System - Panels
     UI/Panels/AssetBrowserPanel.h
     UI/Panels/AssetBrowserPanel.cpp
+    UI/Panels/ProjectSettingsPanel.h
+    UI/Panels/ProjectSettingsPanel.cpp
     UI/Panels/SceneViewPanel.h
     UI/Panels/SceneViewPanel.cpp
     UI/Panels/GameViewportPanel.h
@@ -108,6 +110,10 @@ add_library(BGECore STATIC
     UI/Panels/MaterialEditorPanel.cpp
     UI/Panels/ConsolePanel.h
     UI/Panels/ConsolePanel.cpp
+    
+    # UI System - Icon Management
+    UI/IconManager.h
+    UI/IconManager.cpp
     
     # UI System - Layout
     UI/Layout/UnityLayoutManager.h
@@ -137,6 +143,7 @@ target_link_libraries(BGECore PUBLIC
     Threads::Threads
     imgui::imgui
     OpenGL::GL
+    BGEAssetPipeline
 )
 
 # Platform-specific implementations

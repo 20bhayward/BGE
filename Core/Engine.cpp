@@ -16,6 +16,7 @@
 #include "../Audio/AudioSystem.h"
 #include "../AssetPipeline/AssetManager.h"
 #include "UI/Framework/UISystem.h"
+#include "UI/IconManager.h"
 
 #include <chrono>
 #include <filesystem>
@@ -156,9 +157,9 @@ void Engine::RegisterCoreServices() {
     
     // Initialize and register asset manager
     auto assets = std::make_shared<AssetManager>();
-    if (assets->Initialize()) {
+    if (assets->Initialize("Assets")) {
         serviceLocator.RegisterService<AssetManager>(assets);
-        BGE_LOG_INFO("Engine", "AssetManager service registered");
+        BGE_LOG_INFO("Engine", "AssetManager service registered with enhanced asset pipeline");
     }
     
     // Initialize and register UI system
@@ -166,6 +167,11 @@ void Engine::RegisterCoreServices() {
     if (ui->Initialize(m_window.get())) {
         serviceLocator.RegisterService<UISystem>(ui);
         BGE_LOG_INFO("Engine", "UISystem service registered");
+        
+        // Initialize IconManager after renderer and UI are ready
+        if (IconManager::Instance().Initialize()) {
+            BGE_LOG_INFO("Engine", "IconManager initialized");
+        }
     }
 
   // Initialize and register ParticleSystem

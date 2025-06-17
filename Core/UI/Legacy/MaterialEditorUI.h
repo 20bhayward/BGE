@@ -3,6 +3,7 @@
 #include <memory>
 #include "../../Input/MaterialTools.h"
 #include "../Framework/Panel.h"
+#include "../Panels/ProjectSettingsPanel.h"
 
 // Forward declarations
 namespace BGE {
@@ -49,6 +50,9 @@ private:
     std::shared_ptr<Panel> m_gameViewportPanel;
     std::shared_ptr<Panel> m_inspectorPanel;
     std::shared_ptr<Panel> m_materialPalettePanel;
+    
+    // Standalone windows (not docked)
+    std::unique_ptr<ProjectSettingsPanel> m_projectSettingsPanel;
     
     // UI state
     bool m_visible = true;

@@ -12,6 +12,7 @@ class InputManager;
 class AssetManager;
 class UISystem;
 class ParticleSystem; // Forward declare ParticleSystem
+class ProjectSettingsPanel;
 
 namespace Services {
     template<typename T>
@@ -27,6 +28,8 @@ namespace Services {
     std::shared_ptr<AssetManager> GetAssets();
     std::shared_ptr<UISystem> GetUI();
     std::shared_ptr<ParticleSystem> GetParticles(); // Add getter for ParticleSystem
+    ProjectSettingsPanel* GetProjectSettings();
+    void SetProjectSettings(ProjectSettingsPanel* settings);
 }
 
 } // namespace BGE
