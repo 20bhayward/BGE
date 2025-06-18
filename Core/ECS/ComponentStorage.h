@@ -8,6 +8,12 @@
 #include <memory>
 #include <string>
 
+#ifdef _WIN32
+#include <malloc.h>
+#else
+#include <cstdlib>
+#endif
+
 namespace BGE {
 
 // Structure-of-Arrays component storage for cache-efficient iteration
@@ -173,5 +179,146 @@ std::unique_ptr<IComponentStorage> CreateComponentStorage(bool usePooling = fals
     // For now, always use TypedComponentStorage since PooledComponentStorage needs more work
     return std::make_unique<TypedComponentStorage<T>>();
 }
+
+// Generic component storage using registry function pointers
+class GenericComponentStorage : public IComponentStorage {
+public:
+    explicit GenericComponentStorage(const ComponentInfo& componentInfo) 
+        : m_info(componentInfo) {
+        Reserve(INITIAL_CAPACITY);
+    }
+    
+    ~GenericComponentStorage() {
+        Clear();
+        if (m_data) {
+#ifdef _WIN32
+            _aligned_free(m_data);
+#else
+            std::free(m_data);
+#endif
+        }
+    }
+    
+    void* GetRaw(size_t index) override {
+        assert(index < m_size);
+        return static_cast<char*>(m_data) + (index * m_info.size);
+    }
+    
+    const void* GetRaw(size_t index) const override {
+        assert(index < m_size);
+        return static_cast<const char*>(m_data) + (index * m_info.size);
+    }
+    
+    size_t Size() const override {
+        return m_size;
+    }
+    
+    void Remove(size_t index) override {
+        assert(index < m_size);
+        
+        if (index != m_size - 1) {
+            // Move last element to removed position
+            void* dst = GetRaw(index);
+            void* src = GetRaw(m_size - 1);
+            MoveConstruct(dst, src);
+        }
+        
+        // Destroy last element
+        DestructAt(GetRaw(m_size - 1));
+        --m_size;
+    }
+    
+    void Clear() override {
+        for (size_t i = 0; i < m_size; ++i) {
+            DestructAt(GetRaw(i));
+        }
+        m_size = 0;
+    }
+    
+    void Reserve(size_t capacity) override {
+        if (capacity <= m_capacity) return;
+        
+        size_t newSize = capacity * m_info.size;
+        void* newData = nullptr;
+        
+#ifdef _WIN32
+        newData = _aligned_malloc(newSize, m_info.alignment);
+#else
+        if (posix_memalign(&newData, m_info.alignment, newSize) != 0) {
+            newData = nullptr;
+        }
+#endif
+        
+        if (m_data && m_size > 0) {
+            // Move existing elements
+            for (size_t i = 0; i < m_size; ++i) {
+                void* dst = static_cast<char*>(newData) + (i * m_info.size);
+                void* src = GetRaw(i);
+                MoveConstruct(dst, src);
+                DestructAt(src);
+            }
+#ifdef _WIN32
+            _aligned_free(m_data);
+#else
+            std::free(m_data);
+#endif
+        }
+        
+        m_data = newData;
+        m_capacity = capacity;
+    }
+    
+    void ConstructAt(void* ptr) override {
+        m_info.constructor(ptr);
+    }
+    
+    void DestructAt(void* ptr) override {
+        m_info.destructor(ptr);
+    }
+    
+    void CopyConstruct(void* dst, const void* src) override {
+        m_info.copyConstructor(dst, src);
+    }
+    
+    void MoveConstruct(void* dst, void* src) override {
+        m_info.moveConstructor(dst, src);
+    }
+    
+    void MoveFrom(size_t dstIndex, size_t srcIndex) override {
+        void* dst = GetRaw(dstIndex);
+        void* src = GetRaw(srcIndex);
+        MoveConstruct(dst, src);
+    }
+    
+    // Add a component by copy
+    size_t Add(const void* component) {
+        if (m_size >= m_capacity) {
+            Reserve(m_capacity * 2);
+        }
+        
+        void* dst = GetRaw(m_size);
+        CopyConstruct(dst, component);
+        return m_size++;
+    }
+    
+    // Add a default-constructed component
+    size_t AddDefault() {
+        if (m_size >= m_capacity) {
+            Reserve(m_capacity * 2);
+        }
+        
+        void* dst = GetRaw(m_size);
+        ConstructAt(dst);
+        return m_size++;
+    }
+    
+private:
+    static constexpr size_t INITIAL_CAPACITY = 1024;
+    
+    const ComponentInfo& m_info;
+    void* m_data = nullptr;
+    size_t m_size = 0;
+    size_t m_capacity = 0;
+};
 
 } // namespace BGE

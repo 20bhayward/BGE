@@ -30,7 +30,6 @@ add_library(BGECore STATIC
     # ECS Core
     ECS/EntityID.h
     ECS/ComponentRegistry.h
-    ECS/ComponentRegistry.cpp
     ECS/ComponentStorage.h
     ECS/Archetype.h
     ECS/Archetype.cpp
@@ -40,9 +39,7 @@ add_library(BGECore STATIC
     ECS/EntityQuery.h
     ECS/EntityQuery.cpp
     ECS/System.h
-    ECS/System.cpp
     ECS/SystemManager.h
-    ECS/SystemManager.cpp
     ECS/Systems/MovementSystem.h
     
     # ECS Components
