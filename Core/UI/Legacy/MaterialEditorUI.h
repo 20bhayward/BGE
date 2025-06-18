@@ -27,6 +27,9 @@ public:
     std::shared_ptr<Panel> GetHierarchyPanel() { return m_hierarchyPanel; }
     std::shared_ptr<Panel> GetInspectorPanel() { return m_inspectorPanel; }
     std::shared_ptr<Panel> GetGameViewPanel() { return m_gameViewportPanel; }
+    std::shared_ptr<Panel> GetSceneViewPanel() { return m_sceneViewPanel; }
+    std::shared_ptr<Panel> GetSculptingPanel() { return m_sculptingPanel; }
+    std::shared_ptr<Panel> GetGamePanel() { return m_gamePanel; }
     std::shared_ptr<Panel> GetAssetBrowserPanel() { return m_assetBrowserPanel; }
     std::shared_ptr<Panel> GetMaterialPalettePanel() { return m_materialPalettePanel; }
     
@@ -47,7 +50,10 @@ private:
     // Panel instances (managed by docking system)
     std::shared_ptr<Panel> m_assetBrowserPanel;
     std::shared_ptr<Panel> m_hierarchyPanel;
-    std::shared_ptr<Panel> m_gameViewportPanel;
+    std::shared_ptr<Panel> m_gameViewportPanel;  // Keep for backward compatibility
+    std::shared_ptr<Panel> m_sceneViewPanel;
+    std::shared_ptr<Panel> m_sculptingPanel;
+    std::shared_ptr<Panel> m_gamePanel;
     std::shared_ptr<Panel> m_inspectorPanel;
     std::shared_ptr<Panel> m_materialPalettePanel;
     

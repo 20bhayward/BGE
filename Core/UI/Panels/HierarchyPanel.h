@@ -68,17 +68,17 @@ private:
     
     // Selection state
     std::unordered_set<EntityID> m_selectedEntities;
-    EntityID m_primarySelection = INVALID_ENTITY_ID;
-    EntityID m_lastClickedEntity = INVALID_ENTITY_ID;
+    EntityID m_primarySelection = INVALID_ENTITY;
+    EntityID m_lastClickedEntity = INVALID_ENTITY;
     
     // UI state
-    EntityID m_renamingEntity = INVALID_ENTITY_ID;
+    EntityID m_renamingEntity = INVALID_ENTITY;
     char m_renameBuffer[256] = {0};
     bool m_showContextMenu = false;
-    EntityID m_contextMenuEntity = INVALID_ENTITY_ID;
+    EntityID m_contextMenuEntity = INVALID_ENTITY;
     
     // Drag and drop state
-    EntityID m_draggedEntity = INVALID_ENTITY_ID;
+    EntityID m_draggedEntity = INVALID_ENTITY;
     bool m_isDragging = false;
     
     // Event bus for selection synchronization

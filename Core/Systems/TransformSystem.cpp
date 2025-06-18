@@ -1,5 +1,7 @@
 #include "TransformSystem.h"
 #include "../Entity.h"
+#include "../ECS/EntityManager.h"
+#include "../ECS/EntityQuery.h"
 #include "../Logger.h"
 
 namespace BGE {
@@ -18,7 +20,7 @@ void TransformSystem::Update(float deltaTime) {
         if (!entity->IsActive()) continue;
         
         TransformComponent* transform = entity->GetComponent<TransformComponent>();
-        if (!transform || transform->parent != INVALID_ENTITY_ID) {
+        if (!transform || transform->parent != INVALID_ENTITY) {
             continue; // Skip if no transform or has parent (will be updated by parent)
         }
         
@@ -48,25 +50,16 @@ void TransformSystem::UpdateTransformHierarchy(Entity* entity) {
 
 Matrix4 TransformSystem::CalculateWorldTransform(const TransformComponent* transform, Entity* entity) {
     (void)entity; // Suppress unused parameter warning
-    Matrix4 localTransform = Matrix4::CreateIdentity();
     
-    // Apply scale
-    localTransform = Matrix4::Scale(transform->scale) * localTransform;
-    
-    // Apply rotation
-    localTransform = Matrix4::RotationZ(transform->rotation) * localTransform;
-    
-    // Apply translation
-    localTransform = Matrix4::Translation(transform->position) * localTransform;
+    // Use the new GetLocalTransform method which uses 3D rotation
+    Matrix4 localTransform = transform->GetLocalTransform();
     
     // If has parent, multiply by parent's world transform
-    if (transform->parent != INVALID_ENTITY_ID) {
-        Entity* parentEntity = EntityManager::Instance().GetEntity(transform->parent);
-        if (parentEntity) {
-            TransformComponent* parentTransform = parentEntity->GetComponent<TransformComponent>();
-            if (parentTransform) {
-                return parentTransform->worldTransform * localTransform;
-            }
+    if (transform->parent != INVALID_ENTITY) {
+        auto& entityManager = EntityManager::Instance();
+        TransformComponent* parentTransform = entityManager.GetComponent<TransformComponent>(transform->parent);
+        if (parentTransform) {
+            return parentTransform->worldTransform * localTransform;
         }
     }
     
@@ -74,34 +67,42 @@ Matrix4 TransformSystem::CalculateWorldTransform(const TransformComponent* trans
 }
 
 void TransformSystem::CacheTransformEntities() {
-    m_transformEntities = EntityManager::Instance().GetEntitiesWithComponent<TransformComponent>();
+    m_transformEntities.clear();
+    auto& entityManager = EntityManager::Instance();
+    
+    // Query all entities with transform component and create Entity wrappers
+    EntityQuery query(&entityManager);
+    query.With<TransformComponent>().ForEach([&](EntityID id) {
+        // For compatibility, create Entity wrapper objects
+        auto entity = new Entity(id.id, entityManager.GetEntityName(id));
+        m_transformEntities.push_back(entity);
+    });
+    
     BGE_LOG_DEBUG("TransformSystem", "Cached " + std::to_string(m_transformEntities.size()) + " transform entities");
 }
 
 void TransformSystem::UpdateChildTransforms(Entity* parent, const Matrix4& parentWorldTransform) {
     if (!parent) return;
     
-    TransformComponent* parentTransform = parent->GetComponent<TransformComponent>();
+    auto& entityManager = EntityManager::Instance();
+    EntityID parentId(parent->GetID());
+    TransformComponent* parentTransform = entityManager.GetComponent<TransformComponent>(parentId);
     if (!parentTransform) return;
     
     // Update all children
     for (EntityID childID : parentTransform->children) {
-        Entity* child = EntityManager::Instance().GetEntity(childID);
-        if (!child || !child->IsActive()) continue;
+        if (!entityManager.IsEntityValid(childID)) continue;
         
-        TransformComponent* childTransform = child->GetComponent<TransformComponent>();
+        TransformComponent* childTransform = entityManager.GetComponent<TransformComponent>(childID);
         if (!childTransform) continue;
         
-        // Calculate child's world transform
-        Matrix4 childLocalTransform = Matrix4::CreateIdentity();
-        childLocalTransform = Matrix4::Scale(childTransform->scale) * childLocalTransform;
-        childLocalTransform = Matrix4::RotationZ(childTransform->rotation) * childLocalTransform;
-        childLocalTransform = Matrix4::Translation(childTransform->position) * childLocalTransform;
-        
+        // Calculate child's world transform using 3D rotation
+        Matrix4 childLocalTransform = childTransform->GetLocalTransform();
         childTransform->worldTransform = parentWorldTransform * childLocalTransform;
         
-        // Recursively update this child's children
-        UpdateChildTransforms(child, childTransform->worldTransform);
+        // Recursively update this child's children (create temporary Entity wrapper)
+        Entity tempChild(childID.id, "");
+        UpdateChildTransforms(&tempChild, childTransform->worldTransform);
     }
 }
 

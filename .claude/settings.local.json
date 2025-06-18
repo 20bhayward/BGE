@@ -24,7 +24,14 @@
       "Bash(awk:*)",
       "Bash(g++:*)",
       "Bash(msbuild:*)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(./bin/Release/ECSDemo.exe)",
+      "Bash(MSBuild.exe:*)",
+      "Bash(./ECSDemo.exe)",
+      "Bash(./bin/Release/SystemsDemo.exe)",
+      "Bash(timeout:*)",
+      "Bash(./build/bin/Release/ECSDemo.exe)",
+      "Bash(./build/bin/Release/SystemsDemo.exe)"
     ],
     "deny": []
   }

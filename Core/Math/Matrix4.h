@@ -3,11 +3,18 @@
 #include "Vector3.h"
 #include "Vector4.h"
 #include <cmath>
+#include <algorithm>
 
 namespace BGE {
 
+// Forward declaration
+class Quaternion;
+
 struct Matrix4 {
-    float m[16]; // Column-major order
+    union {
+        float m[16]; // Column-major order
+        float m2[4][4]; // 2D access
+    };
     
     Matrix4() {
         Identity();
@@ -75,6 +82,24 @@ struct Matrix4 {
         return mat;
     }
     
+    static Matrix4 RotationX(float radians) {
+        Matrix4 mat;
+        float c = std::cos(radians);
+        float s = std::sin(radians);
+        mat.m[5] = c;  mat.m[9] = -s;
+        mat.m[6] = s;  mat.m[10] = c;
+        return mat;
+    }
+    
+    static Matrix4 RotationY(float radians) {
+        Matrix4 mat;
+        float c = std::cos(radians);
+        float s = std::sin(radians);
+        mat.m[0] = c;  mat.m[8] = s;
+        mat.m[2] = -s; mat.m[10] = c;
+        return mat;
+    }
+    
     static Matrix4 RotationZ(float radians) {
         Matrix4 mat;
         float c = std::cos(radians);
@@ -82,6 +107,15 @@ struct Matrix4 {
         mat.m[0] = c;  mat.m[4] = -s;
         mat.m[1] = s;  mat.m[5] = c;
         return mat;
+    }
+    
+    static Matrix4 Rotation(const Quaternion& q);
+    
+    static Matrix4 TRS(const Vector3& position, const Quaternion& rotation, const Vector3& scale) {
+        Matrix4 t = Translation(position);
+        Matrix4 r = Rotation(rotation);
+        Matrix4 s = Scale(scale);
+        return t * r * s;
     }
     
     static Matrix4 Perspective(float fovy, float aspect, float nearPlane, float farPlane) {
@@ -105,6 +139,145 @@ struct Matrix4 {
         mat.m[13] = -(top + bottom) / (top - bottom);
         mat.m[14] = -(farPlane + nearPlane) / (farPlane - nearPlane);
         return mat;
+    }
+    
+    static Matrix4 LookAt(const Vector3& eye, const Vector3& target, const Vector3& up) {
+        Vector3 zAxis = (eye - target).Normalized();
+        Vector3 xAxis = up.Cross(zAxis).Normalized();
+        Vector3 yAxis = zAxis.Cross(xAxis);
+        
+        Matrix4 mat;
+        mat.m[0] = xAxis.x; mat.m[4] = xAxis.y; mat.m[8] = xAxis.z;
+        mat.m[1] = yAxis.x; mat.m[5] = yAxis.y; mat.m[9] = yAxis.z;
+        mat.m[2] = zAxis.x; mat.m[6] = zAxis.y; mat.m[10] = zAxis.z;
+        mat.m[12] = -xAxis.Dot(eye);
+        mat.m[13] = -yAxis.Dot(eye);
+        mat.m[14] = -zAxis.Dot(eye);
+        return mat;
+    }
+    
+    // Matrix inverse
+    Matrix4 Inverse() const {
+        Matrix4 inv;
+        float det;
+        
+        inv.m[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] + 
+                   m[9] * m[7] * m[14] + m[13] * m[6] * m[11] - m[13] * m[7] * m[10];
+        
+        inv.m[4] = -m[4] * m[10] * m[15] + m[4] * m[11] * m[14] + m[8] * m[6] * m[15] - 
+                   m[8] * m[7] * m[14] - m[12] * m[6] * m[11] + m[12] * m[7] * m[10];
+        
+        inv.m[8] = m[4] * m[9] * m[15] - m[4] * m[11] * m[13] - m[8] * m[5] * m[15] + 
+                   m[8] * m[7] * m[13] + m[12] * m[5] * m[11] - m[12] * m[7] * m[9];
+        
+        inv.m[12] = -m[4] * m[9] * m[14] + m[4] * m[10] * m[13] + m[8] * m[5] * m[14] - 
+                    m[8] * m[6] * m[13] - m[12] * m[5] * m[10] + m[12] * m[6] * m[9];
+        
+        inv.m[1] = -m[1] * m[10] * m[15] + m[1] * m[11] * m[14] + m[9] * m[2] * m[15] - 
+                   m[9] * m[3] * m[14] - m[13] * m[2] * m[11] + m[13] * m[3] * m[10];
+        
+        inv.m[5] = m[0] * m[10] * m[15] - m[0] * m[11] * m[14] - m[8] * m[2] * m[15] + 
+                   m[8] * m[3] * m[14] + m[12] * m[2] * m[11] - m[12] * m[3] * m[10];
+        
+        inv.m[9] = -m[0] * m[9] * m[15] + m[0] * m[11] * m[13] + m[8] * m[1] * m[15] - 
+                   m[8] * m[3] * m[13] - m[12] * m[1] * m[11] + m[12] * m[3] * m[9];
+        
+        inv.m[13] = m[0] * m[9] * m[14] - m[0] * m[10] * m[13] - m[8] * m[1] * m[14] + 
+                    m[8] * m[2] * m[13] + m[12] * m[1] * m[10] - m[12] * m[2] * m[9];
+        
+        inv.m[2] = m[1] * m[6] * m[15] - m[1] * m[7] * m[14] - m[5] * m[2] * m[15] + 
+                   m[5] * m[3] * m[14] + m[13] * m[2] * m[7] - m[13] * m[3] * m[6];
+        
+        inv.m[6] = -m[0] * m[6] * m[15] + m[0] * m[7] * m[14] + m[4] * m[2] * m[15] - 
+                   m[4] * m[3] * m[14] - m[12] * m[2] * m[7] + m[12] * m[3] * m[6];
+        
+        inv.m[10] = m[0] * m[5] * m[15] - m[0] * m[7] * m[13] - m[4] * m[1] * m[15] + 
+                    m[4] * m[3] * m[13] + m[12] * m[1] * m[7] - m[12] * m[3] * m[5];
+        
+        inv.m[14] = -m[0] * m[5] * m[14] + m[0] * m[6] * m[13] + m[4] * m[1] * m[14] - 
+                    m[4] * m[2] * m[13] - m[12] * m[1] * m[6] + m[12] * m[2] * m[5];
+        
+        inv.m[3] = -m[1] * m[6] * m[11] + m[1] * m[7] * m[10] + m[5] * m[2] * m[11] - 
+                   m[5] * m[3] * m[10] - m[9] * m[2] * m[7] + m[9] * m[3] * m[6];
+        
+        inv.m[7] = m[0] * m[6] * m[11] - m[0] * m[7] * m[10] - m[4] * m[2] * m[11] + 
+                   m[4] * m[3] * m[10] + m[8] * m[2] * m[7] - m[8] * m[3] * m[6];
+        
+        inv.m[11] = -m[0] * m[5] * m[11] + m[0] * m[7] * m[9] + m[4] * m[1] * m[11] - 
+                    m[4] * m[3] * m[9] - m[8] * m[1] * m[7] + m[8] * m[3] * m[5];
+        
+        inv.m[15] = m[0] * m[5] * m[10] - m[0] * m[6] * m[9] - m[4] * m[1] * m[10] + 
+                    m[4] * m[2] * m[9] + m[8] * m[1] * m[6] - m[8] * m[2] * m[5];
+        
+        det = m[0] * inv.m[0] + m[1] * inv.m[4] + m[2] * inv.m[8] + m[3] * inv.m[12];
+        
+        if (det == 0) {
+            return CreateIdentity();
+        }
+        
+        det = 1.0f / det;
+        
+        for (int i = 0; i < 16; i++) {
+            inv.m[i] = inv.m[i] * det;
+        }
+        
+        return inv;
+    }
+    
+    // Decompose matrix into translation, rotation, and scale
+    void Decompose(Vector3& translation, Quaternion& rotation, Vector3& scale) const;
+    
+    // Convert matrix to float array (column-major order)
+    void ToFloatArray(float* outArray) const {
+        for (int i = 0; i < 16; ++i) {
+            outArray[i] = m[i];
+        }
+    }
+    
+    // Get translation from matrix
+    Vector3 GetTranslation() const {
+        return Vector3(m[12], m[13], m[14]);
+    }
+    
+    // Get scale from matrix
+    Vector3 GetScale() const {
+        float scaleX = Vector3(m[0], m[1], m[2]).Length();
+        float scaleY = Vector3(m[4], m[5], m[6]).Length();
+        float scaleZ = Vector3(m[8], m[9], m[10]).Length();
+        return Vector3(scaleX, scaleY, scaleZ);
+    }
+    
+    // Set translation in matrix
+    void SetTranslation(const Vector3& translation) {
+        m[12] = translation.x;
+        m[13] = translation.y;
+        m[14] = translation.z;
+    }
+    
+    // Transform a point (w = 1)
+    Vector3 TransformPoint(const Vector3& point) const {
+        Vector4 v(point.x, point.y, point.z, 1.0f);
+        Vector4 result = (*this) * v;
+        if (result.w != 0.0f) {
+            return Vector3(result.x / result.w, result.y / result.w, result.z / result.w);
+        }
+        return Vector3(result.x, result.y, result.z);
+    }
+    
+    // Transform a direction (w = 0)
+    Vector3 TransformDirection(const Vector3& direction) const {
+        Vector4 v(direction.x, direction.y, direction.z, 0.0f);
+        Vector4 result = (*this) * v;
+        return Vector3(result.x, result.y, result.z);
+    }
+    
+    // Access operators
+    float& operator()(int row, int col) {
+        return m[row + col * 4];
+    }
+    
+    const float& operator()(int row, int col) const {
+        return m[row + col * 4];
     }
 };
 

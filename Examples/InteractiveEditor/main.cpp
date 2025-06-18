@@ -6,9 +6,10 @@
 #include "../../Core/Logger.h"
 #include "../../Core/ConfigManager.h"
 #include "../../Core/Entity.h"
+#include "../../Core/ECS/EntityManager.h"
 #include "../../Core/Components.h"
 #include "../../Core/Input/MaterialTools.h"
-#include "../../Core/UI/Legacy/MaterialEditorUI.h"
+#include "../../Core/UI/ApplicationUI.h"
 #include "../../Simulation/SimulationWorld.h"
 #include "../../Simulation/Materials/MaterialSystem.h"
 #include "../../Core/Input/InputManager.h" // For InputManager and Keys
@@ -26,11 +27,17 @@ public:
     
     bool Initialize() override {
         BGE_LOG_INFO("InteractiveEditor", "=== BGE Interactive Material Editor ===");
-        BGE_LOG_INFO("InteractiveEditor", "Controls:");
+        BGE_LOG_INFO("InteractiveEditor", "");
+        BGE_LOG_INFO("InteractiveEditor", "Three specialized editing modes available:");
+        BGE_LOG_INFO("InteractiveEditor", "  • Scene View: Entity editing and asset manipulation");
+        BGE_LOG_INFO("InteractiveEditor", "  • Sculpting: Material placement and world editing");
+        BGE_LOG_INFO("InteractiveEditor", "  • Game: Pure gameplay experience");
+        BGE_LOG_INFO("InteractiveEditor", "");
+        BGE_LOG_INFO("InteractiveEditor", "Material Sculpting Controls:");
         BGE_LOG_INFO("InteractiveEditor", "  1-8: Select materials from palette");
         BGE_LOG_INFO("InteractiveEditor", "  0: Eraser");
-        BGE_LOG_INFO("InteractiveEditor", "  Left Click: Paint");
-        BGE_LOG_INFO("InteractiveEditor", "  Right Click: Erase");
+        BGE_LOG_INFO("InteractiveEditor", "  Left Click: Paint (in Sculpting panel)");
+        BGE_LOG_INFO("InteractiveEditor", "  Right Click: Erase (in Sculpting panel)");
         BGE_LOG_INFO("InteractiveEditor", "  P: Pause/Play simulation");
         BGE_LOG_INFO("InteractiveEditor", "  S: Step one frame");
         BGE_LOG_INFO("InteractiveEditor", "  R: Reset simulation");
@@ -39,15 +46,29 @@ public:
         BGE_LOG_INFO("InteractiveEditor", "  B: Brush tool");
         BGE_LOG_INFO("InteractiveEditor", "  E: Eraser tool");
         BGE_LOG_INFO("InteractiveEditor", "  I: Sample tool");
+        BGE_LOG_INFO("InteractiveEditor", "");
+        BGE_LOG_INFO("InteractiveEditor", "Scene Editing Controls:");
+        BGE_LOG_INFO("InteractiveEditor", "  Left Click: Select entities (in Scene View)");
+        BGE_LOG_INFO("InteractiveEditor", "  Ctrl+Click: Multi-select entities");
+        BGE_LOG_INFO("InteractiveEditor", "  Middle Mouse: Pan camera");
+        BGE_LOG_INFO("InteractiveEditor", "  Mouse Wheel: Zoom camera");
+        BGE_LOG_INFO("InteractiveEditor", "");
+        BGE_LOG_INFO("InteractiveEditor", "Game Controls:");
+        BGE_LOG_INFO("InteractiveEditor", "  Space: Play/Pause game (in Game panel)");
+        BGE_LOG_INFO("InteractiveEditor", "  Game inputs only work when playing");
+        BGE_LOG_INFO("InteractiveEditor", "");
         BGE_LOG_INFO("InteractiveEditor", "Post-Processing Effects:");
         BGE_LOG_INFO("InteractiveEditor", "  F: Toggle Bloom effect");
         BGE_LOG_INFO("InteractiveEditor", "  G: Toggle Color grading");
         BGE_LOG_INFO("InteractiveEditor", "  H: Toggle Scanlines (retro effect)");
         BGE_LOG_INFO("InteractiveEditor", "  X: Trigger screen shake");
         BGE_LOG_INFO("InteractiveEditor", "  Z: Create explosion (particles + shake)");
+        BGE_LOG_INFO("InteractiveEditor", "");
         BGE_LOG_INFO("InteractiveEditor", "Panel Controls:");
         BGE_LOG_INFO("InteractiveEditor", "  Drag panel edges to resize manually");
-        BGE_LOG_INFO("InteractiveEditor", "Material Palette:");
+        BGE_LOG_INFO("InteractiveEditor", "  Switch between Scene/Sculpting/Game tabs");
+        BGE_LOG_INFO("InteractiveEditor", "");
+        BGE_LOG_INFO("InteractiveEditor", "Available Materials:");
         BGE_LOG_INFO("InteractiveEditor", "  Sand, Water, Fire, Wood, Stone, Oil, Steam, Natural Gas,");
         BGE_LOG_INFO("InteractiveEditor", "  Thick Gas, Smoke, Poison Gas, Ash");
         BGE_LOG_INFO("InteractiveEditor", "=======================================");
@@ -127,8 +148,11 @@ public:
                      std::to_string(simViewportX) + "," + std::to_string(simViewportY) + 
                      ") size " + std::to_string(simViewportWidth) + "x" + std::to_string(simViewportHeight));
         
-        // Initialize UI
-        m_editorUI.Initialize(&m_materialTools, m_world.get());
+        // Initialize UI with new decoupled system
+        if (!m_applicationUI.Initialize(&m_materialTools, m_world.get())) {
+            BGE_LOG_ERROR("InteractiveEditor", "Failed to initialize ApplicationUI!");
+            return false;
+        }
         
         // Start with simulation paused for editing
         m_world->Pause();
@@ -140,11 +164,13 @@ public:
         CreateDefaultScene();
         
         BGE_LOG_INFO("InteractiveEditor", "Interactive Editor initialized successfully");
+        BGE_LOG_INFO("InteractiveEditor", "Available panels: Scene View, Sculpting, Game, Hierarchy, Inspector, Asset Browser, Materials, Console");
+        BGE_LOG_INFO("InteractiveEditor", "Switch between Scene/Sculpting/Game panels to access different editing modes");
         return true;
     }
     
     void Shutdown() override {
-        m_editorUI.Shutdown();
+        m_applicationUI.Shutdown();
         m_materialTools.Shutdown();
     }
     
@@ -158,8 +184,8 @@ public:
     }
     
     void Render() override {
-        // Render the material editor UI
-        m_editorUI.Render();
+        // Render the application UI
+        m_applicationUI.Render();
     }
     
     void OnMousePressed(int button, float x, float y) override {
@@ -411,27 +437,33 @@ private:
         auto& entityManager = EntityManager::Instance();
         
         // Create Main Camera
-        auto mainCamera = entityManager.CreateEntity("Main Camera");
-        mainCamera->AddComponent<TransformComponent>(Vector3{0, 0, 10});
-        mainCamera->AddComponent<NameComponent>("Main Camera");
+        EntityID mainCamera = entityManager.CreateEntity("Main Camera");
+        entityManager.AddComponent<TransformComponent>(mainCamera, TransformComponent{Vector3{0, 0, 10}});
+        entityManager.AddComponent<NameComponent>(mainCamera, NameComponent{"Main Camera"});
         // Add visual components so it shows up in scene
-        mainCamera->AddComponent<SpriteComponent>();
-        auto* cameraMaterial = mainCamera->AddComponent<MaterialComponent>();
-        cameraMaterial->materialID = 10; // Unique material ID for camera
+        entityManager.AddComponent<SpriteComponent>(mainCamera, SpriteComponent{});
+        auto cameraMaterialResult = entityManager.AddComponent<MaterialComponent>(mainCamera, MaterialComponent{});
+        if (cameraMaterialResult) {
+            cameraMaterialResult.GetValue()->materialID = 10; // Unique material ID for camera
+        }
         
         // Create Directional Light
-        auto directionalLight = entityManager.CreateEntity("Directional Light");
-        directionalLight->AddComponent<TransformComponent>(Vector3{0, 10, 5});
-        directionalLight->AddComponent<NameComponent>("Directional Light");
+        EntityID directionalLight = entityManager.CreateEntity("Directional Light");
+        entityManager.AddComponent<TransformComponent>(directionalLight, TransformComponent{Vector3{0, 10, 5}});
+        entityManager.AddComponent<NameComponent>(directionalLight, NameComponent{"Directional Light"});
         // Add actual light component
-        auto* light = directionalLight->AddComponent<LightComponent>(LightComponent::Directional);
-        light->color = Vector3{1.0f, 1.0f, 1.0f};  // White light
-        light->intensity = 1.0f;
-        light->enabled = true;
+        LightComponent lightComp;
+        lightComp.type = LightComponent::Directional;
+        lightComp.color = Vector3{1.0f, 1.0f, 1.0f};  // White light
+        lightComp.intensity = 1.0f;
+        lightComp.enabled = true;
+        entityManager.AddComponent<LightComponent>(directionalLight, std::move(lightComp));
         // Add visual components so it shows up in scene
-        directionalLight->AddComponent<SpriteComponent>();
-        auto* lightMaterial = directionalLight->AddComponent<MaterialComponent>();
-        lightMaterial->materialID = 11; // Unique material ID for light
+        entityManager.AddComponent<SpriteComponent>(directionalLight, SpriteComponent{});
+        auto lightMaterialResult = entityManager.AddComponent<MaterialComponent>(directionalLight, MaterialComponent{});
+        if (lightMaterialResult) {
+            lightMaterialResult.GetValue()->materialID = 11; // Unique material ID for light
+        }
         
         BGE_LOG_INFO("InteractiveEditor", "Created clean default scene with Main Camera and Directional Light");
     }
@@ -439,7 +471,7 @@ private:
     std::shared_ptr<SimulationWorld> m_world;
     MaterialSystem* m_materials = nullptr;
     MaterialTools m_materialTools;
-    MaterialEditorUI m_editorUI;
+    ApplicationUI m_applicationUI;
 
 };
 
@@ -456,7 +488,7 @@ int main() {
         return -1;
     }
     
-    BGE_LOG_INFO("Main", "Engine initialized, starting Interactive Material Editor");
+    BGE_LOG_INFO("Main", "Engine initialized, starting Interactive Multi-Panel Editor");
     
     // Create and run application
     auto app = std::make_unique<InteractiveEditorApp>();

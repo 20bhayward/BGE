@@ -2,7 +2,7 @@
 
 #include <string>
 #include <vector>
-#include "Entity.h"
+#include "ECS/EntityID.h"
 #include "AssetTypes.h"
 
 namespace BGE {
@@ -35,11 +35,11 @@ struct WindowResizeEvent {
 // Entity selection events for editor UI synchronization
 struct EntitySelectionChangedEvent {
     std::vector<EntityID> selectedEntities;
-    EntityID primarySelection = INVALID_ENTITY_ID; // The main selected entity for single operations
+    EntityID primarySelection = INVALID_ENTITY; // The main selected entity for single operations
     
     EntitySelectionChangedEvent() = default;
     EntitySelectionChangedEvent(EntityID single) : primarySelection(single) {
-        if (single != INVALID_ENTITY_ID) {
+        if (single != INVALID_ENTITY) {
             selectedEntities.push_back(single);
         }
     }

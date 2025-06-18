@@ -7,8 +7,13 @@
 #include "../../EventBus.h"
 #include "../../Math/Vector2.h"
 #include "../../Math/Vector3.h"
+#include "../../Math/Matrix4.h"
+#include "../../Math/Ray.h"
+#include "../Gizmos/TransformGizmo.h"
+#include "../Gizmos/Gizmo2D.h"
 #include <vector>
 #include <unordered_set>
+#include <memory>
 
 namespace BGE {
 
@@ -49,6 +54,10 @@ private:
     void RenderEntityIcons();
     void RenderDebugShapes();
     void RenderGrid();
+    void RenderEntities();
+    void RenderWorldPixels(ImDrawList* drawList, SimulationWorld* world);
+    void RenderGridOverlay(ImDrawList* drawList);
+    void RenderEntitiesOverlay(ImDrawList* drawList);
     
     // Editor camera controls
     void HandleEditorCameraInput();
@@ -69,6 +78,12 @@ private:
     Vector2 ScreenToWorld(ImVec2 screenPos);
     ImVec2 WorldToScreen(Vector2 worldPos);
     
+    // Gizmo handling
+    void RenderGizmos();
+    void HandleGizmoInput();
+    void OnGizmoTransformChanged(const Vector3& position, const Quaternion& rotation, const Vector3& scale);
+    void OnGizmo2DTransformChanged(const Vector2& position, float rotation, const Vector2& scale);
+    void UpdateEditorCameraMatrices();
     SimulationWorld* m_world;
     
     // Viewport info
@@ -79,15 +94,15 @@ private:
     bool m_isHovered = false;
     bool m_isFocused = false;
     
-    // Editor camera state
-    Vector2 m_editorCameraPos{0.0f, 0.0f};
+    // Editor camera state (will be centered on world in Initialize)
+    Vector2 m_editorCameraPos{1024.0f, 1024.0f}; // Default to 2048x2048 center
     float m_editorCameraZoom = 1.0f;
     bool m_panning = false;
     Vector2 m_lastMousePos{0.0f, 0.0f};
     
     // Selection state
     std::vector<EntityID> m_selectedEntities;
-    EntityID m_primarySelection = INVALID_ENTITY_ID;
+    EntityID m_primarySelection = INVALID_ENTITY;
     
     // Display options
     bool m_showGrid = true;
@@ -102,6 +117,19 @@ private:
     
     // Event bus for selection synchronization
     EventBus* m_eventBus = nullptr;
+    
+    // Transform gizmo
+    std::unique_ptr<TransformGizmo> m_transformGizmo;
+    std::unique_ptr<Gizmo2D> m_gizmo2D;
+    GizmoMode m_gizmoMode = GizmoMode::Translate;
+    GizmoSpace m_gizmoSpace = GizmoSpace::World;
+    
+    // Editor camera matrices for gizmo rendering
+    Matrix4 m_viewMatrix;
+    Matrix4 m_projMatrix;
+    
+    // Stored viewport position for gizmo rendering
+    ImVec2 m_viewportScreenPos;
 };
 
 } // namespace BGE

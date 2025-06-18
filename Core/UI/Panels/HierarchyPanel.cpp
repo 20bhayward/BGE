@@ -3,6 +3,8 @@
 #include "../../Components.h"
 #include "../../Entity.h"
 #include "../../ServiceLocator.h"
+#include "../../ECS/EntityManager.h"
+#include "../../ECS/EntityQuery.h"
 #include <imgui.h>
 #include <algorithm>
 #include <iostream>
@@ -54,7 +56,7 @@ void HierarchyPanel::OnRender() {
     
     // Handle right-click in empty space for context menu
     if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !ImGui::IsAnyItemHovered()) {
-        m_contextMenuEntity = INVALID_ENTITY_ID;
+        m_contextMenuEntity = INVALID_ENTITY;
         ImGui::OpenPopup("HierarchyContextMenu");
     }
     
@@ -95,7 +97,7 @@ void HierarchyPanel::RenderRootEntities() {
 
 void HierarchyPanel::RenderEntityNode(EntityID entityId, bool& nodeOpen) {
     auto& entityManager = EntityManager::Instance();
-    auto entity = entityManager.GetEntity(entityId);
+    auto entity = entityManager.GetEntity(entityId.GetIndex());
     
     if (!entity) {
         return; // Entity was destroyed
@@ -131,12 +133,12 @@ void HierarchyPanel::RenderEntityNode(EntityID entityId, bool& nodeOpen) {
         if (ImGui::InputText("##rename", m_renameBuffer, sizeof(m_renameBuffer), 
                            ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
             RenameEntity(entityId, m_renameBuffer);
-            m_renamingEntity = INVALID_ENTITY_ID;
+            m_renamingEntity = INVALID_ENTITY;
         }
         
         // Cancel renaming on escape or focus loss
         if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(256)) || !ImGui::IsItemActive()) { // 256 = Escape
-            m_renamingEntity = INVALID_ENTITY_ID;
+            m_renamingEntity = INVALID_ENTITY;
         }
         
         // Pop ID and return
@@ -206,42 +208,40 @@ void HierarchyPanel::RenderEntityNode(EntityID entityId, bool& nodeOpen) {
 
 std::string HierarchyPanel::GetEntityDisplayName(EntityID entityId) const {
     auto& entityManager = EntityManager::Instance();
-    auto entity = entityManager.GetEntity(entityId);
     
-    if (!entity) {
+    if (!entityManager.IsEntityValid(entityId)) {
         return "Invalid Entity";
     }
     
-    auto* nameComponent = entity->GetComponent<NameComponent>();
+    auto* nameComponent = entityManager.GetComponent<NameComponent>(entityId);
     if (nameComponent && !nameComponent->name.empty()) {
         return nameComponent->name;
     }
     
-    return "Entity " + std::to_string(entityId);
+    return "Entity " + std::to_string(entityId.id);
 }
 
 const char* HierarchyPanel::GetEntityIcon(EntityID entityId) const {
     auto& entityManager = EntityManager::Instance();
-    auto entity = entityManager.GetEntity(entityId);
     
-    if (!entity) {
+    if (!entityManager.IsEntityValid(entityId)) {
         return "?";
     }
     
     // Check for specific component types and return appropriate icons
-    if (entity->GetComponent<VelocityComponent>()) {
+    if (entityManager.HasComponent<VelocityComponent>(entityId)) {
         return ">"; // Moving object
     }
     
-    if (entity->GetComponent<MaterialComponent>()) {
+    if (entityManager.HasComponent<MaterialComponent>(entityId)) {
         return "M"; // Material object
     }
     
-    if (entity->GetComponent<SpriteComponent>()) {
+    if (entityManager.HasComponent<SpriteComponent>(entityId)) {
         return "S"; // Sprite
     }
     
-    auto* name = entity->GetComponent<NameComponent>();
+    auto* name = entityManager.GetComponent<NameComponent>(entityId);
     if (name) {
         std::string nameStr = name->name;
         std::transform(nameStr.begin(), nameStr.end(), nameStr.begin(), ::tolower);
@@ -262,7 +262,7 @@ const char* HierarchyPanel::GetEntityIcon(EntityID entityId) const {
 
 void HierarchyPanel::SelectEntity(EntityID entityId, bool ctrlHeld, bool shiftHeld) {
     
-    if (shiftHeld && m_lastClickedEntity != INVALID_ENTITY_ID) {
+    if (shiftHeld && m_lastClickedEntity != INVALID_ENTITY) {
         // Shift-click: range selection
         SelectRange(m_lastClickedEntity, entityId);
     } else if (ctrlHeld) {
@@ -270,7 +270,7 @@ void HierarchyPanel::SelectEntity(EntityID entityId, bool ctrlHeld, bool shiftHe
         if (IsEntitySelected(entityId)) {
             m_selectedEntities.erase(entityId);
             if (m_primarySelection == entityId) {
-                m_primarySelection = m_selectedEntities.empty() ? INVALID_ENTITY_ID : *m_selectedEntities.begin();
+                m_primarySelection = m_selectedEntities.empty() ? INVALID_ENTITY : *m_selectedEntities.begin();
             }
         } else {
             m_selectedEntities.insert(entityId);
@@ -289,8 +289,8 @@ void HierarchyPanel::SelectEntity(EntityID entityId, bool ctrlHeld, bool shiftHe
 
 void HierarchyPanel::ClearSelection() {
     m_selectedEntities.clear();
-    m_primarySelection = INVALID_ENTITY_ID;
-    m_lastClickedEntity = INVALID_ENTITY_ID;
+    m_primarySelection = INVALID_ENTITY;
+    m_lastClickedEntity = INVALID_ENTITY;
     BroadcastSelectionChanged();
 }
 
@@ -327,10 +327,10 @@ std::vector<EntityID> HierarchyPanel::GetRootEntities() const {
     std::vector<EntityID> rootEntities;
     auto& entityManager = EntityManager::Instance();
     
-    for (const auto& [id, entity] : entityManager.GetAllEntities()) {
-        auto* transform = entity->GetComponent<TransformComponent>();
-        if (!transform || transform->parent == INVALID_ENTITY_ID) {
-            rootEntities.push_back(id);
+    for (EntityID entityId : entityManager.GetAllEntityIDs()) {
+        auto* transform = entityManager.GetComponent<TransformComponent>(entityId);
+        if (!transform || transform->parent == INVALID_ENTITY) {
+            rootEntities.push_back(entityId);
         }
     }
     
@@ -339,13 +339,12 @@ std::vector<EntityID> HierarchyPanel::GetRootEntities() const {
 
 std::vector<EntityID> HierarchyPanel::GetChildEntities(EntityID parentId) const {
     auto& entityManager = EntityManager::Instance();
-    auto parentEntity = entityManager.GetEntity(parentId);
     
-    if (!parentEntity) {
+    if (!entityManager.IsEntityValid(parentId)) {
         return {};
     }
     
-    auto* transform = parentEntity->GetComponent<TransformComponent>();
+    auto* transform = entityManager.GetComponent<TransformComponent>(parentId);
     if (!transform) {
         return {};
     }
@@ -362,7 +361,7 @@ void HierarchyPanel::HandleKeyboardInput() {
     
     // F2 or Enter: rename selected entity
     if ((ImGui::IsKeyPressed(static_cast<ImGuiKey>(291)) || ImGui::IsKeyPressed(static_cast<ImGuiKey>(257))) && // 291 = F2, 257 = Enter
-        m_primarySelection != INVALID_ENTITY_ID && m_renamingEntity == INVALID_ENTITY_ID) {
+        m_primarySelection != INVALID_ENTITY && m_renamingEntity == INVALID_ENTITY) {
         m_renamingEntity = m_primarySelection;
         std::string currentName = GetEntityDisplayName(m_primarySelection);
         strncpy(m_renameBuffer, currentName.c_str(), sizeof(m_renameBuffer) - 1);
@@ -382,14 +381,15 @@ void HierarchyPanel::HandleKeyboardInput() {
 
 void HierarchyPanel::RenameEntity(EntityID entityId, const std::string& newName) {
     auto& entityManager = EntityManager::Instance();
-    auto entity = entityManager.GetEntity(entityId);
+    auto entity = entityManager.GetEntity(entityId.GetIndex());
     
     if (!entity) return;
     
     auto* nameComponent = entity->GetComponent<NameComponent>();
     if (!nameComponent) {
         // Add name component if it doesn't exist
-        nameComponent = entity->AddComponent<NameComponent>();
+        NameComponent newNameComp;
+        nameComponent = entity->AddComponent<NameComponent>(std::move(newNameComp));
     }
     
     nameComponent->name = newName;
@@ -417,29 +417,28 @@ void HierarchyPanel::CreateChildEntity(EntityID parentId) {
     auto& entityManager = EntityManager::Instance();
     
     // Create new entity
-    auto newEntity = entityManager.CreateEntity();
-    EntityID newEntityId = newEntity->GetID();
+    EntityID newEntityId = entityManager.CreateEntity();
     
-    if (!newEntity) return;
+    if (!newEntityId.IsValid()) return;
     
     // Add basic components
-    auto* nameComponent = newEntity->AddComponent<NameComponent>();
-    nameComponent->name = "New Entity";
+    NameComponent nameComp;
+    nameComp.name = "New Entity";
+    entityManager.AddComponent<NameComponent>(newEntityId, std::move(nameComp));
     
-    auto* transform = newEntity->AddComponent<TransformComponent>();
+    TransformComponent transformComp;
+    auto transformResult = entityManager.AddComponent<TransformComponent>(newEntityId, std::move(transformComp));
+    TransformComponent* transform = transformResult ? transformResult.GetValue() : nullptr;
     
     // Set parent relationship if specified
-    if (parentId != INVALID_ENTITY_ID) {
-        auto parentEntity = entityManager.GetEntity(parentId);
-        if (parentEntity) {
-            auto* parentTransform = parentEntity->GetComponent<TransformComponent>();
-            if (parentTransform) {
-                transform->parent = parentId;
-                parentTransform->children.push_back(newEntityId);
-                
-                // Expand the parent node
-                m_expandedNodes.insert(parentId);
-            }
+    if (parentId != INVALID_ENTITY && transform) {
+        auto* parentTransform = entityManager.GetComponent<TransformComponent>(parentId);
+        if (parentTransform) {
+            transform->parent = parentId;
+            parentTransform->children.push_back(newEntityId);
+            
+            // Expand the parent node
+            m_expandedNodes.insert(parentId);
         }
     }
     
@@ -453,19 +452,24 @@ void HierarchyPanel::CreateEmpty() {
     auto& entityManager = EntityManager::Instance();
     
     // Create new empty entity
-    auto newEntity = entityManager.CreateEntity("Empty");
-    if (!newEntity) return;
-    
-    EntityID newEntityId = newEntity->GetID();
+    EntityID newEntityId = entityManager.CreateEntity("Empty");
+    if (!newEntityId.IsValid()) return;
     
     // Add basic components
-    newEntity->AddComponent<NameComponent>("Empty");
-    newEntity->AddComponent<TransformComponent>();
+    NameComponent nameComp;
+    nameComp.name = "Empty";
+    entityManager.AddComponent<NameComponent>(newEntityId, std::move(nameComp));
+    TransformComponent transformComp;
+    entityManager.AddComponent<TransformComponent>(newEntityId, std::move(transformComp));
     
     // Add visual components so it appears in the scene
-    newEntity->AddComponent<SpriteComponent>();
-    auto* material = newEntity->AddComponent<MaterialComponent>();
-    material->materialID = 1; // Default material
+    SpriteComponent spriteComp;
+    entityManager.AddComponent<SpriteComponent>(newEntityId, std::move(spriteComp));
+    MaterialComponent materialComp;
+    auto materialResult = entityManager.AddComponent<MaterialComponent>(newEntityId, std::move(materialComp));
+    if (materialResult) {
+        materialResult.GetValue()->materialID = 1; // Default material
+    }
     
     // Select the new entity
     SelectEntity(newEntityId, false, false);
@@ -475,26 +479,35 @@ void HierarchyPanel::CreateRigidbodyEntity() {
     auto& entityManager = EntityManager::Instance();
     
     // Create new entity with rigidbody
-    auto newEntity = entityManager.CreateEntity("Rigidbody");
-    EntityID newEntityId = newEntity->GetID();
+    EntityID newEntityId = entityManager.CreateEntity("Rigidbody");
     
-    if (!newEntity) return;
+    if (!newEntityId.IsValid()) return;
     
     // Add required components
-    newEntity->AddComponent<NameComponent>("Rigidbody");
-    newEntity->AddComponent<TransformComponent>();
+    NameComponent nameComp;
+    nameComp.name = "Rigidbody";
+    entityManager.AddComponent<NameComponent>(newEntityId, std::move(nameComp));
+    TransformComponent transformComp;
+    entityManager.AddComponent<TransformComponent>(newEntityId, std::move(transformComp));
     
     // Add visual components so it appears in the scene
-    newEntity->AddComponent<SpriteComponent>();
-    auto* material = newEntity->AddComponent<MaterialComponent>();
-    material->materialID = 2; // Different material for rigidbody objects
+    SpriteComponent spriteComp;
+    entityManager.AddComponent<SpriteComponent>(newEntityId, std::move(spriteComp));
+    MaterialComponent materialComp;
+    auto materialResult = entityManager.AddComponent<MaterialComponent>(newEntityId, std::move(materialComp));
+    if (materialResult) {
+        materialResult.GetValue()->materialID = 2; // Different material for rigidbody objects
+    }
     
     // Add rigidbody component with sensible defaults
-    auto* rigidbody = newEntity->AddComponent<RigidbodyComponent>();
-    rigidbody->mass = 1.0f;
-    rigidbody->useGravity = true;
-    rigidbody->drag = 0.0f;
-    rigidbody->angularDrag = 0.05f;
+    RigidbodyComponent rigidbodyComp;
+    auto rigidbodyResult = entityManager.AddComponent<RigidbodyComponent>(newEntityId, std::move(rigidbodyComp));
+    if (rigidbodyResult) {
+        rigidbodyResult.GetValue()->mass = 1.0f;
+        rigidbodyResult.GetValue()->useGravity = true;
+        rigidbodyResult.GetValue()->drag = 0.0f;
+        rigidbodyResult.GetValue()->angularDrag = 0.05f;
+    }
     
     // Select the new entity
     SelectEntity(newEntityId, false, false);
@@ -506,26 +519,34 @@ void HierarchyPanel::CreatePointLightEntity() {
     auto& entityManager = EntityManager::Instance();
     
     // Create new entity with point light
-    auto newEntity = entityManager.CreateEntity("Point Light");
-    EntityID newEntityId = newEntity->GetID();
+    EntityID newEntityId = entityManager.CreateEntity("Point Light");
     
-    if (!newEntity) return;
+    if (!newEntityId.IsValid()) return;
     
     // Add required components
-    newEntity->AddComponent<NameComponent>("Point Light");
-    newEntity->AddComponent<TransformComponent>();
+    NameComponent nameComp;
+    nameComp.name = "Point Light";
+    entityManager.AddComponent<NameComponent>(newEntityId, std::move(nameComp));
+    TransformComponent transformComp;
+    entityManager.AddComponent<TransformComponent>(newEntityId, std::move(transformComp));
     
     // Add visual components (lights should also be visible)
-    newEntity->AddComponent<SpriteComponent>();
-    auto* material = newEntity->AddComponent<MaterialComponent>();
-    material->materialID = 3; // Light material (could be glowing/bright)
+    SpriteComponent spriteComp;
+    entityManager.AddComponent<SpriteComponent>(newEntityId, std::move(spriteComp));
+    MaterialComponent materialComp;
+    auto materialResult = entityManager.AddComponent<MaterialComponent>(newEntityId, std::move(materialComp));
+    if (materialResult) {
+        materialResult.GetValue()->materialID = 3; // Light material (could be glowing/bright)
+    }
     
     // Add light component with sensible defaults for point light
-    auto* light = newEntity->AddComponent<LightComponent>(LightComponent::Point);
-    light->color = Vector3{1.0f, 1.0f, 1.0f};  // White light
-    light->intensity = 1.0f;
-    light->range = 10.0f;
-    light->enabled = true;
+    LightComponent lightComp;
+    lightComp.type = LightComponent::Point;
+    lightComp.color = Vector3{1.0f, 1.0f, 1.0f};  // White light
+    lightComp.intensity = 1.0f;
+    lightComp.range = 10.0f;
+    lightComp.enabled = true;
+    auto lightResult = entityManager.AddComponent<LightComponent>(newEntityId, std::move(lightComp));
     
     // Select the new entity
     SelectEntity(newEntityId, false, false);
@@ -535,7 +556,7 @@ void HierarchyPanel::CreatePointLightEntity() {
 
 void HierarchyPanel::ShowContextMenu() {
     if (ImGui::BeginPopup("HierarchyContextMenu")) {
-        if (m_contextMenuEntity != INVALID_ENTITY_ID) {
+        if (m_contextMenuEntity != INVALID_ENTITY) {
             std::string entityName = GetEntityDisplayName(m_contextMenuEntity);
             ImGui::Text("Entity: %s", entityName.c_str());
             ImGui::Separator();
@@ -628,7 +649,7 @@ void HierarchyPanel::HandleMaterialDragAndDrop(EntityID entityId) {
 
 void HierarchyPanel::ApplyMaterialToEntity(EntityID entityId, const std::string& materialPath) {
     auto& entityManager = EntityManager::Instance();
-    auto entity = entityManager.GetEntity(entityId);
+    auto entity = entityManager.GetEntity(entityId.GetIndex());
     
     if (!entity) {
         std::cout << "Failed to apply material: Entity " << entityId << " not found" << std::endl;
@@ -658,7 +679,8 @@ void HierarchyPanel::ApplyMaterialToEntity(EntityID entityId, const std::string&
     // Get or add MaterialComponent
     auto* materialComponent = entity->GetComponent<MaterialComponent>();
     if (!materialComponent) {
-        materialComponent = entity->AddComponent<MaterialComponent>();
+        MaterialComponent materialComp;
+        materialComponent = entity->AddComponent<MaterialComponent>(std::move(materialComp));
     }
     
     // Apply the new material

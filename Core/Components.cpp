@@ -1,5 +1,7 @@
 #include "Components.h"
 #include "Logger.h"
+#include "Entity.h"  // Need full definition before EntityManager.h
+#include "ECS/EntityManager.h"
 #include <sstream>
 
 namespace BGE {
@@ -24,6 +26,25 @@ namespace {
         return vec;
     }
     
+    std::string QuaternionToString(const Quaternion& q) {
+        std::stringstream ss;
+        ss << q.x << "," << q.y << "," << q.z << "," << q.w;
+        return ss.str();
+    }
+    
+    Quaternion StringToQuaternion(const std::string& str) {
+        std::stringstream ss(str);
+        std::string item;
+        Quaternion q;
+        
+        if (std::getline(ss, item, ',')) q.x = std::stof(item);
+        if (std::getline(ss, item, ',')) q.y = std::stof(item);
+        if (std::getline(ss, item, ',')) q.z = std::stof(item);
+        if (std::getline(ss, item, ',')) q.w = std::stof(item);
+        
+        return q;
+    }
+    
     std::string ChildrenToString(const std::vector<EntityID>& children) {
         std::stringstream ss;
         for (size_t i = 0; i < children.size(); ++i) {
@@ -40,7 +61,7 @@ namespace {
         std::stringstream ss(str);
         std::string item;
         while (std::getline(ss, item, ',')) {
-            children.push_back(std::stoull(item));
+            children.push_back(EntityID(std::stoull(item)));
         }
         return children;
     }
@@ -51,7 +72,8 @@ SerializationData TransformComponent::Serialize() const {
     SerializationData data;
     
     data["position"] = VectorToString(position);
-    data["rotation"] = std::to_string(rotation);
+    data["rotation"] = std::to_string(rotation); // Keep for backward compatibility
+    data["rotation3D"] = QuaternionToString(rotation3D);
     data["scale"] = VectorToString(scale);
     data["parent"] = std::to_string(parent);
     data["children"] = ChildrenToString(children);
@@ -65,9 +87,18 @@ void TransformComponent::Deserialize(const SerializationData& data) {
         position = StringToVector(it->second);
     }
     
-    it = data.find("rotation");
+    // Try to load 3D rotation first
+    it = data.find("rotation3D");
     if (it != data.end()) {
-        rotation = std::stof(it->second);
+        rotation3D = StringToQuaternion(it->second);
+        rotation = rotation3D.ToEuler().z; // Update 2D rotation
+    } else {
+        // Fall back to 2D rotation for backward compatibility
+        it = data.find("rotation");
+        if (it != data.end()) {
+            rotation = std::stof(it->second);
+            rotation3D = Quaternion::FromEuler(0.0f, 0.0f, rotation);
+        }
     }
     
     it = data.find("scale");
@@ -77,7 +108,7 @@ void TransformComponent::Deserialize(const SerializationData& data) {
     
     it = data.find("parent");
     if (it != data.end()) {
-        parent = std::stoull(it->second);
+        parent = EntityID(std::stoull(it->second));
     }
     
     it = data.find("children");
@@ -97,31 +128,9 @@ void TransformComponent::RemoveChild(EntityID child) {
 }
 
 void TransformComponent::SetParent(EntityID newParent) {
-    if (parent != INVALID_ENTITY_ID) {
-        // Remove from old parent's children list
-        auto& entityManager = EntityManager::Instance();
-        Entity* oldParentEntity = entityManager.GetEntity(parent);
-        if (oldParentEntity) {
-            TransformComponent* oldParentTransform = oldParentEntity->GetComponent<TransformComponent>();
-            if (oldParentTransform) {
-                oldParentTransform->RemoveChild(GetEntityID());
-            }
-        }
-    }
-    
+    // TODO: Implement hierarchy management with new ECS system
+    // For now, just set the parent without updating relationships
     parent = newParent;
-    
-    if (parent != INVALID_ENTITY_ID) {
-        // Add to new parent's children list
-        auto& entityManager = EntityManager::Instance();
-        Entity* newParentEntity = entityManager.GetEntity(parent);
-        if (newParentEntity) {
-            TransformComponent* newParentTransform = newParentEntity->GetComponent<TransformComponent>();
-            if (newParentTransform) {
-                newParentTransform->AddChild(GetEntityID());
-            }
-        }
-    }
 }
 
 } // namespace BGE

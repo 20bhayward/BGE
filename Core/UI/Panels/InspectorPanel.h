@@ -83,7 +83,7 @@ private:
     
     // Selection state
     std::vector<EntityID> m_selectedEntities;
-    EntityID m_primarySelection = INVALID_ENTITY_ID;
+    EntityID m_primarySelection = INVALID_ENTITY;
     
     // UI state
     bool m_showAddComponentPopup = false;

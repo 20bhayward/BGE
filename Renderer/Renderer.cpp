@@ -113,16 +113,10 @@ bool Renderer::Initialize(Window* window) {
         BGE_LOG_ERROR("Renderer", "Failed to initialize PixelCamera.");
     }
 
-    // Initialize PostProcessor with simulation world dimensions (512x512)
+    // Initialize PostProcessor with simulation world dimensions
     // The PostProcessor works on the simulation pixel data, not the window size
     m_postProcessor = std::make_unique<PostProcessor>();
-    if (m_postProcessor) {
-        if (m_postProcessor->Initialize(512, 512)) {
-            BGE_LOG_INFO("Renderer", "PostProcessor initialized for 512x512 simulation world");
-        } else {
-            BGE_LOG_ERROR("Renderer", "Failed to initialize PostProcessor");
-        }
-    }
+    // Note: PostProcessor will be re-initialized when we know the actual world size
 
     BGE_LOG_INFO("Renderer", "Renderer initialized successfully.");
     return true;
@@ -145,7 +139,7 @@ void Renderer::BeginFrame() {
     BGE_LOG_TRACE("Renderer", "BeginFrame() - Setting up OpenGL state");
     
     // If we're not rendering to texture, set up the normal framebuffer
-    if (!m_renderingToTexture) {
+    if (!m_renderingToTexture && !m_renderingToSceneTexture) {
         // Clear screen with a dark gray background
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -177,22 +171,46 @@ void Renderer::BeginFrame() {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     
-    // Apply screen shake offset if available
-    Vector2 shakeOffset = {0.0f, 0.0f};
-    if (m_postProcessor && m_postProcessor->IsEffectEnabled(PostProcessEffect::ScreenShake)) {
-        shakeOffset = m_postProcessor->GetShakeOffset();
+    // Check if we have a camera with custom transform
+    if (m_pixelCamera && (m_renderingToSceneTexture || m_renderingToTexture)) {
+        // For scene view or game view, use camera-based projection
+        int viewportWidth = m_renderingToSceneTexture ? m_sceneTextureWidth : 
+                           (m_renderingToTexture ? m_gameTextureWidth : m_simViewportWidth);
+        int viewportHeight = m_renderingToSceneTexture ? m_sceneTextureHeight : 
+                            (m_renderingToTexture ? m_gameTextureHeight : m_simViewportHeight);
+        
+        // Update camera projection for current viewport
+        m_pixelCamera->SetProjection(static_cast<float>(viewportWidth), static_cast<float>(viewportHeight));
+        
+        // Get camera view matrix and apply it
+        Matrix4 viewMatrix = m_pixelCamera->GetViewMatrix();
+        float matrix[16];
+        viewMatrix.ToFloatArray(matrix);
+        glMultMatrixf(matrix);
+        
+        BGE_LOG_TRACE("Renderer", "Applied camera view matrix with position (" + 
+                      std::to_string(m_pixelCamera->GetPosition().x) + "," + 
+                      std::to_string(m_pixelCamera->GetPosition().y) + ") zoom " + 
+                      std::to_string(m_pixelCamera->GetZoom()));
+    } else {
+        // Default projection for direct rendering (no camera)
+        // Apply screen shake offset if available
+        Vector2 shakeOffset = {0.0f, 0.0f};
+        if (m_postProcessor && m_postProcessor->IsEffectEnabled(PostProcessEffect::ScreenShake)) {
+            shakeOffset = m_postProcessor->GetShakeOffset();
+        }
+        
+        // Use simulation world coordinates (512x512) with Y=0 at bottom (standard OpenGL)
+        // Apply screen shake by adjusting the orthographic bounds
+        float left = 0.0f + shakeOffset.x;
+        float right = 512.0f + shakeOffset.x;
+        float bottom = 0.0f + shakeOffset.y;
+        float top = 512.0f + shakeOffset.y;
+        
+        glOrtho(left, right, bottom, top, -1, 1);
+        BGE_LOG_TRACE("Renderer", "Projection matrix set to default orthographic with shake offset (" + 
+                      std::to_string(shakeOffset.x) + "," + std::to_string(shakeOffset.y) + ")");
     }
-    
-    // Use simulation world coordinates (512x512) with Y=0 at bottom (standard OpenGL)
-    // Apply screen shake by adjusting the orthographic bounds
-    float left = 0.0f + shakeOffset.x;
-    float right = 512.0f + shakeOffset.x;
-    float bottom = 0.0f + shakeOffset.y;
-    float top = 512.0f + shakeOffset.y;
-    
-    glOrtho(left, right, bottom, top, -1, 1);
-    BGE_LOG_TRACE("Renderer", "Projection matrix set to orthographic with shake offset (" + 
-                  std::to_string(shakeOffset.x) + "," + std::to_string(shakeOffset.y) + ")");
     
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -254,6 +272,24 @@ void Renderer::RenderWorld(class SimulationWorld* world) {
     if (!originalPixelData) {
         BGE_LOG_ERROR("Renderer", "No pixel data available from SimulationWorld");
         return;
+    }
+    
+    // Initialize PostProcessor with correct world size if needed
+    if (m_postProcessor) {
+        static bool postProcessorInitialized = false;
+        static uint32_t lastWidth = 0;
+        static uint32_t lastHeight = 0;
+        
+        if (!postProcessorInitialized || lastWidth != width || lastHeight != height) {
+            if (m_postProcessor->Initialize(width, height)) {
+                BGE_LOG_INFO("Renderer", "PostProcessor initialized for " + std::to_string(width) + "x" + std::to_string(height) + " world");
+                postProcessorInitialized = true;
+                lastWidth = width;
+                lastHeight = height;
+            } else {
+                BGE_LOG_ERROR("Renderer", "Failed to initialize PostProcessor for world size");
+            }
+        }
     }
     
     // Create a working copy for post-processing
@@ -522,6 +558,116 @@ void Renderer::EndRenderToTexture() {
     m_renderingToTexture = false;
     
     BGE_LOG_TRACE("Renderer", "Finished rendering to texture");
+}
+
+bool Renderer::CreateSceneFramebuffer(int width, int height) {
+    // Check if framebuffer extensions are available
+    if (!glGenFramebuffers) {
+        BGE_LOG_ERROR("Renderer", "OpenGL framebuffer extensions not available");
+        return false;
+    }
+    
+    // Cleanup existing framebuffer if any
+    DestroySceneFramebuffer();
+    
+    m_sceneTextureWidth = width;
+    m_sceneTextureHeight = height;
+    
+    // Generate framebuffer
+    glGenFramebuffers(1, &m_sceneFramebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_sceneFramebuffer);
+    
+    // Create color texture
+    glGenTextures(1, &m_sceneTextureId);
+    glBindTexture(GL_TEXTURE_2D, m_sceneTextureId);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    
+    // Attach color texture to framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_sceneTextureId, 0);
+    
+    // Create depth buffer (optional, but good practice)
+    glGenRenderbuffers(1, &m_sceneDepthBuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, m_sceneDepthBuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_sceneDepthBuffer);
+    
+    // Check framebuffer completeness
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        BGE_LOG_ERROR("Renderer", "Scene framebuffer not complete! Status: " + std::to_string(status));
+        DestroySceneFramebuffer();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        return false;
+    }
+    
+    // Restore default framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    BGE_LOG_INFO("Renderer", "Scene framebuffer created successfully: " + std::to_string(width) + "x" + std::to_string(height) + 
+                 ", Texture ID: " + std::to_string(m_sceneTextureId));
+    return true;
+}
+
+void Renderer::DestroySceneFramebuffer() {
+    if (m_sceneDepthBuffer != 0 && glDeleteRenderbuffers) {
+        glDeleteRenderbuffers(1, &m_sceneDepthBuffer);
+        m_sceneDepthBuffer = 0;
+    }
+    
+    if (m_sceneTextureId != 0) {
+        glDeleteTextures(1, &m_sceneTextureId);
+        m_sceneTextureId = 0;
+    }
+    
+    if (m_sceneFramebuffer != 0 && glDeleteFramebuffers) {
+        glDeleteFramebuffers(1, &m_sceneFramebuffer);
+        m_sceneFramebuffer = 0;
+    }
+    
+    m_renderingToSceneTexture = false;
+    BGE_LOG_INFO("Renderer", "Scene framebuffer destroyed");
+}
+
+void Renderer::BeginRenderToSceneTexture() {
+    if (m_sceneFramebuffer == 0 || !glBindFramebuffer) {
+        BGE_LOG_ERROR("Renderer", "Cannot begin render to scene texture - framebuffer not created or extensions not available");
+        return;
+    }
+    
+    // Bind our framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, m_sceneFramebuffer);
+    
+    // Set viewport to texture size
+    glViewport(0, 0, m_sceneTextureWidth, m_sceneTextureHeight);
+    
+    m_renderingToSceneTexture = true;
+    
+    BGE_LOG_TRACE("Renderer", "Started rendering to scene texture (" + 
+                  std::to_string(m_sceneTextureWidth) + "x" + std::to_string(m_sceneTextureHeight) + ")");
+}
+
+void Renderer::EndRenderToSceneTexture() {
+    if (!m_renderingToSceneTexture || !glBindFramebuffer) {
+        return;
+    }
+    
+    // Restore default framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    // Restore window viewport (will be set again in BeginFrame if needed)
+    if (m_window) {
+        int windowWidth, windowHeight;
+        m_window->GetSize(windowWidth, windowHeight);
+        glViewport(0, 0, windowWidth, windowHeight);
+    }
+    
+    m_renderingToSceneTexture = false;
+    
+    BGE_LOG_TRACE("Renderer", "Finished rendering to scene texture");
 }
 
 } // namespace BGE

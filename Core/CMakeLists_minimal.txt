@@ -1,0 +1,37 @@
+add_library(BGECoreMinimal STATIC
+    # Foundation
+    Logger.cpp
+    Logger.h
+    
+    # Components (minimal)
+    Components.h
+    Components.cpp
+    
+    # ECS Core
+    ECS/EntityID.h
+    ECS/ComponentRegistry.h
+    ECS/ComponentRegistry.cpp
+    ECS/ComponentStorage.h
+    ECS/Archetype.h
+    ECS/Archetype.cpp
+    ECS/ArchetypeManager.h
+    ECS/EntityManager.h
+    ECS/EntityManager.cpp
+    ECS/EntityQuery.h
+    ECS/EntityQuery.cpp
+    
+    # ECS Components
+    ECS/Components/CoreComponents.h
+    
+    # Math (minimal)
+    Math/Vector2.h
+    Math/Vector3.h
+    Math/Vector4.h
+    Math/Matrix4.h
+    Math/Matrix4.cpp
+    Math/Quaternion.h
+    Math/Math.h
+    Math/Math.cpp
+)
+
+target_include_directories(BGECoreMinimal PUBLIC .)

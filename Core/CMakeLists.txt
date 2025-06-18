@@ -27,16 +27,36 @@ add_library(BGECore STATIC
     Systems/TransformSystem.h
     Systems/TransformSystem.cpp
     
-    # ECS Components and Queries
+    # ECS Core
+    ECS/EntityID.h
+    ECS/ComponentRegistry.h
+    ECS/ComponentRegistry.cpp
+    ECS/ComponentStorage.h
     ECS/Archetype.h
+    ECS/Archetype.cpp
+    ECS/ArchetypeManager.h
+    ECS/EntityManager.h
+    ECS/EntityManager.cpp
     ECS/EntityQuery.h
     ECS/EntityQuery.cpp
+    ECS/System.h
+    ECS/System.cpp
+    ECS/SystemManager.h
+    ECS/SystemManager.cpp
+    ECS/Systems/MovementSystem.h
+    
+    # ECS Components
+    ECS/Components/CoreComponents.h
+    ECS/Components/GameplayComponents.h
     
     # Math
     Math/Vector2.h
     Math/Vector3.h
     Math/Vector4.h
     Math/Matrix4.h
+    Math/Matrix4.cpp
+    Math/Quaternion.h
+    Math/Ray.h
     Math/Math.h
     Math/Math.cpp
     
@@ -98,6 +118,10 @@ add_library(BGECore STATIC
     UI/Panels/ProjectSettingsPanel.cpp
     UI/Panels/SceneViewPanel.h
     UI/Panels/SceneViewPanel.cpp
+    UI/Panels/SculptingPanel.h
+    UI/Panels/SculptingPanel.cpp
+    UI/Panels/GamePanel.h
+    UI/Panels/GamePanel.cpp
     UI/Panels/GameViewportPanel.h
     UI/Panels/GameViewportPanel.cpp
     UI/Panels/InspectorPanel.h
@@ -110,14 +134,30 @@ add_library(BGECore STATIC
     UI/Panels/MaterialEditorPanel.cpp
     UI/Panels/ConsolePanel.h
     UI/Panels/ConsolePanel.cpp
+    UI/Panels/ECSInspectorPanel.h
+    UI/Panels/ECSInspectorPanel.cpp
+    UI/Panels/ArchetypeDebuggerPanel.h
+    UI/Panels/ArchetypeDebuggerPanel.cpp
     
     # UI System - Icon Management
     UI/IconManager.h
     UI/IconManager.cpp
     
+    # UI System - Gizmos
+    UI/Gizmos/GizmoRenderer.h
+    UI/Gizmos/GizmoRenderer.cpp
+    UI/Gizmos/TransformGizmo.h
+    UI/Gizmos/TransformGizmo.cpp
+    UI/Gizmos/Gizmo2D.h
+    UI/Gizmos/Gizmo2D.cpp
+    
     # UI System - Layout
     UI/Layout/UnityLayoutManager.h
     UI/Layout/UnityLayoutManager.cpp
+    
+    # UI System - Application Layer
+    UI/ApplicationUI.h
+    UI/ApplicationUI.cpp
     
     # UI System - Legacy
     UI/Legacy/MaterialEditorUI.h

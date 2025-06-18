@@ -3,6 +3,8 @@
 #include "../../Services.h"
 #include "../../ServiceLocator.h"
 #include "../../Entity.h"
+#include "../../ECS/EntityManager.h"
+#include "../../ECS/EntityQuery.h"
 #include "../../../Renderer/Renderer.h"
 #include "../../../AssetPipeline/AssetManager.h"
 #include "../../../ThirdParty/stb/stb_image.h"
@@ -91,7 +93,7 @@ void InspectorPanel::OnAssetSelectionChanged(const AssetSelectionChangedEvent& e
     if (!event.selectedAssetPath.empty()) {
         // Clear entity selection when an asset is selected
         m_selectedEntities.clear();
-        m_primarySelection = INVALID_ENTITY_ID;
+        m_primarySelection = INVALID_ENTITY;
         m_materialInspectorMode = false;
         
         // Enter asset inspector mode
@@ -376,7 +378,7 @@ void InspectorPanel::RenderEntityInspector() {
     ImGui::Separator();
     
     // Render components for primary selection
-    if (m_primarySelection != INVALID_ENTITY_ID) {
+    if (m_primarySelection != INVALID_ENTITY) {
         RenderComponentList(m_primarySelection);
         
         ImGui::Spacing();
@@ -388,9 +390,9 @@ void InspectorPanel::RenderMultiSelectionHeader() {
     ImGui::Text("🔗 Multi-Selection (%zu entities)", m_selectedEntities.size());
     ImGui::TextColored(ImVec4(0.8f, 0.6f, 0.2f, 1.0f), "⚠ Editing affects all selected entities");
     
-    if (m_primarySelection != INVALID_ENTITY_ID) {
+    if (m_primarySelection != INVALID_ENTITY) {
         auto& entityManager = EntityManager::Instance();
-        Entity* entity = entityManager.GetEntity(m_primarySelection);
+        Entity* entity = entityManager.GetEntity(m_primarySelection.GetIndex());
         if (entity) {
             auto* nameComponent = entity->GetComponent<NameComponent>();
             std::string displayName = nameComponent ? nameComponent->name : ("Entity " + std::to_string(m_primarySelection));
@@ -401,7 +403,7 @@ void InspectorPanel::RenderMultiSelectionHeader() {
 
 void InspectorPanel::RenderSingleEntityHeader(EntityID entityId) {
     auto& entityManager = EntityManager::Instance();
-    Entity* entity = entityManager.GetEntity(entityId);
+    Entity* entity = entityManager.GetEntity(entityId.GetIndex());
     
     if (!entity) {
         ImGui::TextColored(ImVec4(0.8f, 0.4f, 0.4f, 1.0f), "⚠ Invalid entity");
@@ -427,7 +429,7 @@ void InspectorPanel::RenderSingleEntityHeader(EntityID entityId) {
 
 void InspectorPanel::RenderComponentList(EntityID entityId) {
     auto& entityManager = EntityManager::Instance();
-    Entity* entity = entityManager.GetEntity(entityId);
+    Entity* entity = entityManager.GetEntity(entityId.GetIndex());
     
     if (!entity) {
         return;
@@ -500,7 +502,7 @@ void InspectorPanel::RenderTransformComponent(Entity* entity, TransformComponent
     changed |= InputVector3("Scale", &component->scale);
     
     // Parent info (read-only for now)
-    if (component->parent != INVALID_ENTITY_ID) {
+    if (component->parent != INVALID_ENTITY) {
         ImGui::Text("Parent: Entity %u", component->parent);
     } else {
         ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "No parent");
@@ -513,10 +515,10 @@ void InspectorPanel::RenderTransformComponent(Entity* entity, TransformComponent
     // Apply changes to all selected entities if this is multi-selection
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetID()) continue;
+            if (selectedId == entity->GetECSEntityID()) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId);
+            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
             if (selectedEntity) {
                 auto* selectedTransform = selectedEntity->GetComponent<TransformComponent>();
                 if (selectedTransform) {
@@ -558,10 +560,10 @@ void InspectorPanel::RenderNameComponent(Entity* entity, NameComponent* componen
     // Apply changes to all selected entities if this is multi-selection
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetID()) continue;
+            if (selectedId == entity->GetECSEntityID()) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId);
+            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
             if (selectedEntity) {
                 auto* selectedName = selectedEntity->GetComponent<NameComponent>();
                 if (selectedName) {
@@ -597,10 +599,10 @@ void InspectorPanel::RenderSpriteComponent(Entity* entity, SpriteComponent* comp
     // Apply changes to all selected entities
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetID()) continue;
+            if (selectedId == entity->GetECSEntityID()) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId);
+            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
             if (selectedEntity) {
                 auto* selectedSprite = selectedEntity->GetComponent<SpriteComponent>();
                 if (selectedSprite) {
@@ -638,10 +640,10 @@ void InspectorPanel::RenderVelocityComponent(Entity* entity, VelocityComponent* 
     // Apply changes to all selected entities
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetID()) continue;
+            if (selectedId == entity->GetECSEntityID()) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId);
+            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
             if (selectedEntity) {
                 auto* selectedVelocity = selectedEntity->GetComponent<VelocityComponent>();
                 if (selectedVelocity) {
@@ -687,10 +689,10 @@ void InspectorPanel::RenderHealthComponent(Entity* entity, HealthComponent* comp
     // Apply changes to all selected entities
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetID()) continue;
+            if (selectedId == entity->GetECSEntityID()) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId);
+            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
             if (selectedEntity) {
                 auto* selectedHealth = selectedEntity->GetComponent<HealthComponent>();
                 if (selectedHealth) {
@@ -727,10 +729,10 @@ void InspectorPanel::RenderMaterialComponent(Entity* entity, MaterialComponent* 
     // Apply changes to all selected entities
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetID()) continue;
+            if (selectedId == entity->GetECSEntityID()) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId);
+            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
             if (selectedEntity) {
                 auto* selectedMaterial = selectedEntity->GetComponent<MaterialComponent>();
                 if (selectedMaterial) {
@@ -840,9 +842,9 @@ void InspectorPanel::RenderAddComponentPopup() {
             
             // Check if entity already has this component
             bool hasComponent = false;
-            if (m_primarySelection != INVALID_ENTITY_ID) {
+            if (m_primarySelection != INVALID_ENTITY) {
                 auto& entityManager = EntityManager::Instance();
-                Entity* entity = entityManager.GetEntity(m_primarySelection);
+                Entity* entity = entityManager.GetEntity(m_primarySelection.GetIndex());
                 if (entity) {
                     if (componentType == "TransformComponent") hasComponent = entity->GetComponent<TransformComponent>() != nullptr;
                     else if (componentType == "NameComponent") hasComponent = entity->GetComponent<NameComponent>() != nullptr;
@@ -881,42 +883,50 @@ void InspectorPanel::RenderAddComponentPopup() {
 
 void InspectorPanel::AddComponentToEntity(EntityID entityId, const std::string& componentType) {
     auto& entityManager = EntityManager::Instance();
-    Entity* entity = entityManager.GetEntity(entityId);
+    Entity* entity = entityManager.GetEntity(entityId.GetIndex());
     
     if (!entity) return;
     
     if (componentType == "TransformComponent") {
         if (!entity->GetComponent<TransformComponent>()) {
-            entity->AddComponent<TransformComponent>();
+            TransformComponent transformComp;
+            entity->AddComponent<TransformComponent>(std::move(transformComp));
         }
     } else if (componentType == "NameComponent") {
         if (!entity->GetComponent<NameComponent>()) {
-            auto* comp = entity->AddComponent<NameComponent>();
-            comp->name = "New Entity";
+            NameComponent nameComp;
+            nameComp.name = "New Entity";
+            entity->AddComponent<NameComponent>(std::move(nameComp));
         }
     } else if (componentType == "SpriteComponent") {
         if (!entity->GetComponent<SpriteComponent>()) {
-            entity->AddComponent<SpriteComponent>();
+            SpriteComponent spriteComp;
+            entity->AddComponent<SpriteComponent>(std::move(spriteComp));
         }
     } else if (componentType == "VelocityComponent") {
         if (!entity->GetComponent<VelocityComponent>()) {
-            entity->AddComponent<VelocityComponent>();
+            VelocityComponent velocityComp;
+            entity->AddComponent<VelocityComponent>(std::move(velocityComp));
         }
     } else if (componentType == "HealthComponent") {
         if (!entity->GetComponent<HealthComponent>()) {
-            entity->AddComponent<HealthComponent>();
+            HealthComponent healthComp;
+            entity->AddComponent<HealthComponent>(std::move(healthComp));
         }
     } else if (componentType == "MaterialComponent") {
         if (!entity->GetComponent<MaterialComponent>()) {
-            entity->AddComponent<MaterialComponent>();
+            MaterialComponent materialComp;
+            entity->AddComponent<MaterialComponent>(std::move(materialComp));
         }
     } else if (componentType == "LightComponent") {
         if (!entity->GetComponent<LightComponent>()) {
-            entity->AddComponent<LightComponent>();
+            LightComponent lightComp;
+            entity->AddComponent<LightComponent>(std::move(lightComp));
         }
     } else if (componentType == "RigidbodyComponent") {
         if (!entity->GetComponent<RigidbodyComponent>()) {
-            entity->AddComponent<RigidbodyComponent>();
+            RigidbodyComponent rigidbodyComp;
+            entity->AddComponent<RigidbodyComponent>(std::move(rigidbodyComp));
         }
     }
     
@@ -925,7 +935,7 @@ void InspectorPanel::AddComponentToEntity(EntityID entityId, const std::string& 
 
 void InspectorPanel::RemoveComponentFromEntity(EntityID entityId, const std::string& componentType) {
     auto& entityManager = EntityManager::Instance();
-    Entity* entity = entityManager.GetEntity(entityId);
+    Entity* entity = entityManager.GetEntity(entityId.GetIndex());
     
     if (!entity) return;
     
@@ -1103,10 +1113,10 @@ void InspectorPanel::RenderLightComponent(Entity* entity, LightComponent* compon
     // Apply changes to all selected entities
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetID()) continue;
+            if (selectedId == entity->GetECSEntityID()) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId);
+            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
             if (selectedEntity) {
                 auto* selectedLight = selectedEntity->GetComponent<LightComponent>();
                 if (selectedLight) {
@@ -1150,10 +1160,10 @@ void InspectorPanel::RenderRigidbodyComponent(Entity* entity, RigidbodyComponent
     // Apply changes to all selected entities
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetID()) continue;
+            if (selectedId == entity->GetECSEntityID()) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId);
+            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
             if (selectedEntity) {
                 auto* selectedRigidbody = selectedEntity->GetComponent<RigidbodyComponent>();
                 if (selectedRigidbody) {

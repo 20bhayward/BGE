@@ -1,162 +1,185 @@
 #pragma once
 
+#include "EntityID.h"
+#include "ComponentRegistry.h"
+#include "ComponentStorage.h"
+#include "PooledComponentStorage.h"
+#include "ECSResult.h"
+#include "../Logger.h"
 #include <vector>
 #include <unordered_map>
-#include <typeindex>
 #include <memory>
+#include <algorithm>
 #include <bitset>
 
 namespace BGE {
 
-using EntityID = uint64_t;
-using ComponentID = size_t;
-
-// Maximum number of component types
-constexpr size_t MAX_COMPONENTS = 128;
-
-// Component type mask for fast comparison
+// Component mask for fast archetype comparison
 using ComponentMask = std::bitset<MAX_COMPONENTS>;
 
-// Base class for component storage
-class IComponentArray {
-public:
-    virtual ~IComponentArray() = default;
-    virtual void RemoveEntity(EntityID entity) = 0;
-    virtual void MoveEntity(EntityID from, EntityID to) = 0;
-    virtual size_t GetSize() const = 0;
-};
-
-// Typed component storage using Structure-of-Arrays layout
-template<typename T>
-class ComponentArray : public IComponentArray {
-public:
-    void AddComponent(EntityID entity, T component) {
-        size_t index = m_components.size();
-        m_components.push_back(std::move(component));
-        m_entityToIndex[entity] = index;
-        m_indexToEntity[index] = entity;
-    }
+// Record of where an entity's components are stored
+struct EntityRecord {
+    uint32_t archetypeIndex = UINT32_MAX;
+    uint32_t row = UINT32_MAX;
     
-    T* GetComponent(EntityID entity) {
-        auto it = m_entityToIndex.find(entity);
-        if (it != m_entityToIndex.end()) {
-            return &m_components[it->second];
-        }
-        return nullptr;
-    }
-    
-    void RemoveEntity(EntityID entity) override {
-        auto it = m_entityToIndex.find(entity);
-        if (it == m_entityToIndex.end()) return;
-        
-        size_t indexToRemove = it->second;
-        size_t lastIndex = m_components.size() - 1;
-        
-        // Swap with last element
-        if (indexToRemove != lastIndex) {
-            m_components[indexToRemove] = std::move(m_components[lastIndex]);
-            
-            // Update mappings
-            EntityID lastEntity = m_indexToEntity[lastIndex];
-            m_entityToIndex[lastEntity] = indexToRemove;
-            m_indexToEntity[indexToRemove] = lastEntity;
-        }
-        
-        m_components.pop_back();
-        m_entityToIndex.erase(entity);
-        m_indexToEntity.erase(lastIndex);
-    }
-    
-    void MoveEntity(EntityID from, EntityID to) override {
-        auto it = m_entityToIndex.find(from);
-        if (it != m_entityToIndex.end()) {
-            size_t index = it->second;
-            m_entityToIndex.erase(from);
-            m_entityToIndex[to] = index;
-            m_indexToEntity[index] = to;
-        }
-    }
-    
-    size_t GetSize() const override { return m_components.size(); }
-    
-    // Direct access to component array for iteration
-    std::vector<T>& GetComponents() { return m_components; }
-    const std::vector<T>& GetComponents() const { return m_components; }
-    
-private:
-    std::vector<T> m_components;
-    std::unordered_map<EntityID, size_t> m_entityToIndex;
-    std::unordered_map<size_t, EntityID> m_indexToEntity;
+    bool IsValid() const { return archetypeIndex != UINT32_MAX; }
 };
 
 // Archetype represents a unique combination of components
 class Archetype {
 public:
-    Archetype(ComponentMask mask) : m_mask(mask) {}
-    
-    template<typename T>
-    void AddComponent(EntityID entity, T component) {
-        ComponentID id = GetComponentID<T>();
+    Archetype(ComponentMask mask, const std::vector<ComponentTypeID>& types)
+        : m_mask(mask), m_componentTypes(types) {
         
-        if (!m_componentArrays[id]) {
-            m_componentArrays[id] = std::make_unique<ComponentArray<T>>();
+        // Sort component types for consistent ordering
+        std::sort(m_componentTypes.begin(), m_componentTypes.end());
+        
+        // Create storage for each component type
+        // Storage will be created lazily when components are first added
+    }
+    
+    // Add an entity to this archetype
+    uint32_t AddEntity(EntityID entity) {
+        if (!entity.IsValid()) {
+            BGE_LOG_ERROR("Archetype", "Cannot add invalid entity to archetype");
+            return UINT32_MAX;
         }
         
-        static_cast<ComponentArray<T>*>(m_componentArrays[id].get())
-            ->AddComponent(entity, std::move(component));
+        uint32_t row = static_cast<uint32_t>(m_entities.size());
+        
+        // Check for overflow
+        if (row == UINT32_MAX) {
+            BGE_LOG_ERROR("Archetype", "Archetype row limit reached");
+            return UINT32_MAX;
+        }
         
         m_entities.push_back(entity);
-    }
-    
-    template<typename T>
-    T* GetComponent(EntityID entity) {
-        ComponentID id = GetComponentID<T>();
-        if (m_componentArrays[id]) {
-            return static_cast<ComponentArray<T>*>(m_componentArrays[id].get())
-                ->GetComponent(entity);
+        
+        // Allocate space in each component storage
+        for (auto& [typeID, storage] : m_componentStorages) {
+            storage->Reserve(m_entities.size());
         }
-        return nullptr;
+        
+        return row;
     }
     
-    void RemoveEntity(EntityID entity) {
-        // Remove from all component arrays
-        for (auto& [id, array] : m_componentArrays) {
-            if (array) {
-                array->RemoveEntity(entity);
+    // Remove an entity by swapping with last
+    ECSResult<EntityID> RemoveEntity(uint32_t row) {
+        if (row >= m_entities.size()) {
+            return ECSResult<EntityID>(ECSErrorInfo(ECSError::InvalidOperation, "Row index out of bounds", std::to_string(row)));
+        }
+        
+        EntityID movedEntity = m_entities.back();
+        
+        if (row != m_entities.size() - 1) {
+            // Swap with last entity
+            m_entities[row] = movedEntity;
+            
+            // Move components
+            for (auto& [typeID, storage] : m_componentStorages) {
+                if (storage && storage->Size() > row) {
+                    storage->MoveFrom(row, storage->Size() - 1);
+                }
             }
         }
         
-        // Remove from entity list
-        m_entities.erase(
-            std::remove(m_entities.begin(), m_entities.end(), entity),
-            m_entities.end()
-        );
+        m_entities.pop_back();
+        
+        // Remove last component in each storage
+        for (auto& [typeID, storage] : m_componentStorages) {
+            if (storage && storage->Size() > 0) {
+                storage->Remove(storage->Size() - 1);
+            }
+        }
+        
+        return ECSResult<EntityID>(movedEntity);
     }
     
-    const ComponentMask& GetMask() const { return m_mask; }
-    const std::vector<EntityID>& GetEntities() const { return m_entities; }
-    
+    // Get component storage
     template<typename T>
-    ComponentArray<T>* GetComponentArray() {
-        ComponentID id = GetComponentID<T>();
-        if (m_componentArrays[id]) {
-            return static_cast<ComponentArray<T>*>(m_componentArrays[id].get());
+    ComponentStorage<T>* GetComponentStorage() {
+        ComponentTypeID typeID = ComponentRegistry::Instance().GetComponentTypeID<T>();
+        auto it = m_componentStorages.find(typeID);
+        if (it != m_componentStorages.end()) {
+            auto* typed = dynamic_cast<TypedComponentStorage<T>*>(it->second.get());
+            return typed ? &typed->GetTypedStorage() : nullptr;
         }
+        
+        // Create storage if it doesn't exist and this archetype should have it
+        if (HasComponent(typeID)) {
+            m_componentStorages[typeID] = CreateStorageForComponent<T>();
+            auto* typed = dynamic_cast<TypedComponentStorage<T>*>(m_componentStorages[typeID].get());
+            return typed ? &typed->GetTypedStorage() : nullptr;
+        }
+        
         return nullptr;
     }
     
-private:
-    template<typename T>
-    static ComponentID GetComponentID() {
-        static ComponentID id = s_nextComponentID++;
-        return id;
+    // Get type-erased component storage
+    IComponentStorage* GetComponentStorage(ComponentTypeID typeID) {
+        auto it = m_componentStorages.find(typeID);
+        return it != m_componentStorages.end() ? it->second.get() : nullptr;
     }
     
-    ComponentMask m_mask;
-    std::vector<EntityID> m_entities;
-    std::unordered_map<ComponentID, std::unique_ptr<IComponentArray>> m_componentArrays;
+    // Get component by entity row
+    template<typename T>
+    T* GetComponent(uint32_t row) {
+        auto* storage = GetComponentStorage<T>();
+        return storage && row < storage->Size() ? &storage->Get(row) : nullptr;
+    }
     
-    inline static ComponentID s_nextComponentID = 0;
+    // Set component data
+    template<typename T>
+    void SetComponent(uint32_t row, T&& component) {
+        auto* storage = GetComponentStorage<T>();
+        if (!storage) return;
+        
+        // Ensure storage is large enough
+        while (storage->Size() <= row) {
+            storage->Emplace();
+        }
+        
+        storage->Get(row) = std::forward<T>(component);
+    }
+    
+    // Getters
+    const ComponentMask& GetMask() const { return m_mask; }
+    const std::vector<ComponentTypeID>& GetComponentTypes() const { return m_componentTypes; }
+    const std::vector<EntityID>& GetEntities() const { return m_entities; }
+    size_t GetEntityCount() const { return m_entities.size(); }
+    
+    // Check if archetype has component
+    bool HasComponent(ComponentTypeID typeID) const {
+        return typeID < MAX_COMPONENTS && m_mask.test(typeID);
+    }
+    
+    template<typename T>
+    bool HasComponent() const {
+        ComponentTypeID typeID = ComponentRegistry::Instance().GetComponentTypeID<T>();
+        return HasComponent(typeID);
+    }
+    
+private:
+    ComponentMask m_mask;
+    std::vector<ComponentTypeID> m_componentTypes;
+    std::vector<EntityID> m_entities;
+    mutable std::unordered_map<ComponentTypeID, std::unique_ptr<IComponentStorage>> m_componentStorages;
+    
+    // Factory function to create storage based on type
+    std::unique_ptr<IComponentStorage> CreateStorageForType(std::type_index typeIndex);
+    
+    // Template version for direct type specification
+    template<typename T>
+    std::unique_ptr<IComponentStorage> CreateStorageForComponent() {
+        // Use regular typed storage for now
+        return std::make_unique<TypedComponentStorage<T>>();
+    }
+};
+
+// Archetype edge for fast archetype transitions
+struct ArchetypeEdge {
+    uint32_t add = UINT32_MAX;    // Archetype when adding component
+    uint32_t remove = UINT32_MAX; // Archetype when removing component
 };
 
 } // namespace BGE

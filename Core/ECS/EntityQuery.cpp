@@ -1,82 +1,74 @@
 #include "EntityQuery.h"
-#include "../Entity.h"
+#include "../Entity.h"  // Need full definition before EntityManager.h
+#include "EntityManager.h"
 
 namespace BGE {
 
-std::vector<Entity*> EntityQuery::Execute() {
-    std::vector<Entity*> results;
-    
-    auto& entityManager = EntityManager::Instance();
-    
-    // For now, iterate all entities (can be optimized with archetype system)
-    // In a full implementation, this would use the archetype system for fast queries
-    for (auto& entity : entityManager.GetAllEntities()) {
-        if (MatchesEntity(entity.second.get())) {
-            results.push_back(entity.second.get());
-        }
-    }
-    
-    return results;
+EntityQuery::EntityQuery(EntityManager* manager)
+    : m_entityManager(manager) {
 }
 
-void EntityQuery::ForEach(std::function<void(Entity*)> callback) {
-    auto& entityManager = EntityManager::Instance();
+QueryResult EntityQuery::Execute() {
+    auto& archetypeManager = m_entityManager->GetArchetypeManager();
+    std::vector<uint32_t> matchingArchetypes = archetypeManager.GetArchetypesMatching(m_requiredMask, m_excludedMask);
     
-    for (auto& entity : entityManager.GetAllEntities()) {
-        if (MatchesEntity(entity.second.get())) {
-            callback(entity.second.get());
+    // Filter archetypes based on component filters if any
+    if (!m_filters.empty()) {
+        std::vector<uint32_t> filtered;
+        
+        for (uint32_t archetypeIdx : matchingArchetypes) {
+            Archetype* archetype = archetypeManager.GetArchetype(archetypeIdx);
+            if (archetype && archetype->GetEntityCount() > 0) {
+                // Check if at least one entity passes filters
+                bool hasMatch = false;
+                for (size_t i = 0; i < archetype->GetEntityCount() && !hasMatch; ++i) {
+                    if (PassesFilters(archetype, static_cast<uint32_t>(i))) {
+                        hasMatch = true;
+                    }
+                }
+                
+                if (hasMatch) {
+                    filtered.push_back(archetypeIdx);
+                }
+            }
         }
+        
+        matchingArchetypes = std::move(filtered);
+    }
+    
+    return QueryResult(matchingArchetypes, &archetypeManager);
+}
+
+void EntityQuery::ForEach(std::function<void(EntityID)> callback) {
+    QueryResult result = Execute();
+    
+    for (auto entityData : result) {
+        callback(entityData.entity);
     }
 }
 
-Entity* EntityQuery::First() {
-    auto& entityManager = EntityManager::Instance();
+EntityID EntityQuery::First() {
+    QueryResult result = Execute();
     
-    for (auto& entity : entityManager.GetAllEntities()) {
-        if (MatchesEntity(entity.second.get())) {
-            return entity.second.get();
-        }
+    for (auto entityData : result) {
+        return entityData.entity;
     }
     
-    return nullptr;
+    return INVALID_ENTITY;
 }
 
 size_t EntityQuery::Count() {
-    size_t count = 0;
-    
-    auto& entityManager = EntityManager::Instance();
-    
-    for (auto& entity : entityManager.GetAllEntities()) {
-        if (MatchesEntity(entity.second.get())) {
-            count++;
-        }
-    }
-    
-    return count;
+    QueryResult result = Execute();
+    return result.Count();
 }
 
-bool EntityQuery::MatchesEntity(Entity* entity) const {
-    if (!entity || !entity->IsActive()) {
-        return false;
-    }
-    
-    // Check required components
-    for (const auto& componentType : m_requiredComponents) {
-        if (!entity->HasComponentType(componentType)) {
-            return false;
-        }
-    }
-    
-    // Check excluded components
-    for (const auto& componentType : m_excludedComponents) {
-        if (entity->HasComponentType(componentType)) {
-            return false;
-        }
-    }
-    
-    // Check predicates
-    for (const auto& predicate : m_predicates) {
-        if (!predicate(entity)) {
+bool EntityQuery::PassesFilters(Archetype* archetype, uint32_t row) const {
+    for (const auto& [typeID, filter] : m_filters) {
+        IComponentStorage* storage = archetype->GetComponentStorage(typeID);
+        if (!storage) return false;
+        
+        const void* component = storage->GetRaw(row);
+        if (!component || !filter(component)) {
             return false;
         }
     }

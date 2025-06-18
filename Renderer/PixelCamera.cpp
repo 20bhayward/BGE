@@ -43,34 +43,28 @@ void PixelCamera::SetProjection(float screenWidth, float screenHeight) {
 
 Matrix4 PixelCamera::GetViewMatrix() const {
     // Calculate the effective screen dimensions based on zoom
-    // Zoomming in means showing less of the world, so divide screen dimensions by zoom
+    // Zooming in means showing less of the world, so divide screen dimensions by zoom
     float effectiveScreenWidth = m_screenWidth / m_zoom;
     float effectiveScreenHeight = m_screenHeight / m_zoom;
 
     // Calculate the orthographic projection bounds
     // The camera's position is the center of the view
+    // In the BGE world coordinate system, Y=0 is at the bottom (OpenGL style)
     float left = m_position.x - effectiveScreenWidth / 2.0f;
     float right = m_position.x + effectiveScreenWidth / 2.0f;
-    float bottom = m_position.y - effectiveScreenHeight / 2.0f; // In many 2D views, positive Y is down
-    float top = m_position.y + effectiveScreenHeight / 2.0f;    // So bottom > top if Y is up in world, top > bottom if Y is down.
-                                                            // Assuming world Y is upwards for now.
-                                                            // If pixel art means pixel coords (0,0 top-left), then bottom/top might be swapped or calculated differently.
-                                                            // For pixel-perfect, ensure these are on pixel boundaries.
-                                                            // Let's use floorf for consistency, though the position snapping is primary.
+    float bottom = m_position.y - effectiveScreenHeight / 2.0f;
+    float top = m_position.y + effectiveScreenHeight / 2.0f;
+    
+    // For pixel-perfect rendering, ensure these are on pixel boundaries
     left = std::floorf(left);
     right = std::floorf(right);
     bottom = std::floorf(bottom);
     top = std::floorf(top);
 
     // BGE::Matrix4::Orthographic expects: left, right, bottom, top, near, far
-    // For 2D, near and far can be -1 and 1 or similar.
+    // For 2D, near and far can be -1 and 1
+    // This creates a combined view-projection matrix that maps world coordinates to NDC
     Matrix4 view = Matrix4::Orthographic(left, right, bottom, top, -1.0f, 1.0f);
-
-    // The view matrix in typical graphics pipelines is the inverse of the camera's transformation.
-    // However, an orthographic matrix constructed this way often directly serves as the combined view-projection.
-    // If we needed a separate camera transform (e.g. if Matrix4::Orthographic was just projection),
-    // it would be: Matrix4::Translation(Vector3(-m_position.x, -m_position.y, 0)).
-    // But since Orthographic takes world-space bounds, it should be correct.
 
     return view;
 }

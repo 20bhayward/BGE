@@ -11,6 +11,9 @@
 #include "../Panels/AssetBrowserPanel.h"
 #include "../Panels/ProjectSettingsPanel.h"
 #include "../Panels/GameViewportPanel.h"
+#include "../Panels/SceneViewPanel.h"
+#include "../Panels/SculptingPanel.h"
+#include "../Panels/GamePanel.h"
 #include "../Panels/InspectorPanel.h"
 #include "../Panels/HierarchyPanel.h"
 #include "../Panels/MaterialPalettePanel.h"
@@ -49,9 +52,23 @@ void MaterialEditorUI::Initialize(MaterialTools* tools, SimulationWorld* world) 
     m_assetBrowserPanel->Initialize();
     docking.AddPanel(m_assetBrowserPanel, "bottom");
     
-    m_gameViewportPanel = std::make_shared<GameViewportPanel>("Game", m_world, m_materialTools);
+    // Create the three specialized view panels
+    m_sceneViewPanel = std::make_shared<SceneViewPanel>("Scene View", m_world);
+    m_sceneViewPanel->Initialize();
+    docking.AddPanel(m_sceneViewPanel, "game");
+    
+    m_sculptingPanel = std::make_shared<SculptingPanel>("Sculpting", m_world, m_materialTools);
+    m_sculptingPanel->Initialize();
+    docking.AddPanel(m_sculptingPanel, "game");
+    
+    m_gamePanel = std::make_shared<GamePanel>("Game", m_world);
+    m_gamePanel->Initialize();
+    docking.AddPanel(m_gamePanel, "game");
+    
+    // Keep the old GameViewportPanel for backward compatibility (hidden by default)
+    m_gameViewportPanel = std::make_shared<GameViewportPanel>("Legacy Game View", m_world, m_materialTools);
     m_gameViewportPanel->Initialize();
-    docking.AddPanel(m_gameViewportPanel, "game");
+    // Don't add to docking by default - can be shown via menu if needed
     
     m_inspectorPanel = std::make_shared<InspectorPanel>("Inspector");
     m_inspectorPanel->Initialize();
@@ -88,6 +105,9 @@ void MaterialEditorUI::Shutdown() {
     if (m_hierarchyPanel) m_hierarchyPanel->Shutdown();
     if (m_assetBrowserPanel) m_assetBrowserPanel->Shutdown();
     if (m_gameViewportPanel) m_gameViewportPanel->Shutdown();
+    if (m_sceneViewPanel) m_sceneViewPanel->Shutdown();
+    if (m_sculptingPanel) m_sculptingPanel->Shutdown();
+    if (m_gamePanel) m_gamePanel->Shutdown();
     if (m_inspectorPanel) m_inspectorPanel->Shutdown();
     if (m_materialPalettePanel) m_materialPalettePanel->Shutdown();
 }

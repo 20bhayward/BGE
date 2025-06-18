@@ -4,6 +4,8 @@
 #include "../../../Renderer/Renderer.h"
 #include "../../Components.h"
 #include "../../Entity.h"
+#include "../../ECS/EntityManager.h"
+#include "../../ECS/EntityQuery.h"
 #include <imgui.h>
 #include <algorithm>
 #include <filesystem>
@@ -43,25 +45,25 @@ void GameViewportPanel::RenderViewportToolbar() {
     bool isPaused = m_world->IsPaused();
     
     if (isPaused) {
-        if (ImGui::Button("▶")) {
+        if (ImGui::Button(" Play ")) {
             m_world->Play();
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Play (P)");
     } else {
-        if (ImGui::Button("⏸")) {
+        if (ImGui::Button("Pause")) {
             m_world->Pause();
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Pause (P)");
     }
     
     ImGui::SameLine();
-    if (ImGui::Button("⏭")) {
+    if (ImGui::Button("Step")) {
         m_world->Step();
     }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Step (S)");
     
     ImGui::SameLine();
-    if (ImGui::Button("⏹")) {
+    if (ImGui::Button("Reset")) {
         m_world->Reset();
     }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Reset (R)");
@@ -85,7 +87,7 @@ void GameViewportPanel::RenderViewportToolbar() {
     ImGui::SameLine();
     
     ToolMode currentMode = m_tools->GetToolMode();
-    const char* toolIcons[] = { "🖌", "🗑", "🔍" };
+    const char* toolIcons[] = { "Brush", "Erase", "Sample" };
     const char* toolNames[] = { "Paint", "Erase", "Sample" };
     int modeIndex = static_cast<int>(currentMode);
     
@@ -198,8 +200,8 @@ void GameViewportPanel::RenderGameContent() {
         // Check if the image is hovered for input handling
         bool imageHovered = ImGui::IsItemHovered();
         
-        // Handle material drag and drop on the scene view
-        if (imageHovered) {
+        // Handle material drag and drop on the scene view (only when playing)
+        if (imageHovered && !m_world->IsPaused()) {
             HandleMaterialDragAndDrop(ImGui::GetMousePos(), contentRegion);
         }
         
@@ -240,8 +242,8 @@ void GameViewportPanel::RenderGameContent() {
         }
     }
     
-    // Drag and drop target
-    if (ImGui::BeginDragDropTarget()) {
+    // Drag and drop target (only when playing)
+    if (!m_world->IsPaused() && ImGui::BeginDragDropTarget()) {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MATERIAL_ID")) {
             MaterialID materialId = *(MaterialID*)payload->Data;
             m_tools->GetBrush().SetMaterial(materialId);
@@ -319,8 +321,8 @@ void GameViewportPanel::HandleImageInput(ImVec2 cursorPos, ImVec2 contentRegion)
     // MaterialTools expects absolute screen coordinates, not relative ones
     // (mousePos already declared above)
     
-    // Then handle material tools if not in camera mode and mouse is within bounds
-    if (!m_cameraMode && relativeX >= 0 && relativeY >= 0 && relativeX < contentRegion.x && relativeY < contentRegion.y) {
+    // Then handle material tools if not in camera mode, mouse is within bounds, and simulation is playing
+    if (!m_cameraMode && !m_world->IsPaused() && relativeX >= 0 && relativeY >= 0 && relativeX < contentRegion.x && relativeY < contentRegion.y) {
         // Use absolute screen coordinates for material tools (they do their own conversion)
         m_tools->OnMouseMoved(mousePos.x, mousePos.y);
         
@@ -422,11 +424,10 @@ void GameViewportPanel::HandleMaterialDragAndDrop(ImVec2 mousePos, ImVec2 /*cont
                     
                     // Simple implementation: Apply to first entity with transform component
                     auto& entityManager = EntityManager::Instance();
-                    for (const auto& [id, entity] : entityManager.GetAllEntities()) {
-                        if (entity->GetComponent<TransformComponent>()) {
-                            ApplyMaterialToEntity(id, draggedAsset);
-                            break; // Apply to first entity found
-                        }
+                    EntityQuery query(&entityManager);
+                    auto firstEntity = query.With<TransformComponent>().First();
+                    if (firstEntity.IsValid()) {
+                        ApplyMaterialToEntity(firstEntity, draggedAsset);
                     }
                 }
             }
@@ -437,10 +438,9 @@ void GameViewportPanel::HandleMaterialDragAndDrop(ImVec2 mousePos, ImVec2 /*cont
 
 void GameViewportPanel::ApplyMaterialToEntity(EntityID entityId, const std::string& materialPath) {
     auto& entityManager = EntityManager::Instance();
-    auto entity = entityManager.GetEntity(entityId);
     
-    if (!entity) {
-        std::cout << "Failed to apply material: Entity " << entityId << " not found" << std::endl;
+    if (!entityManager.IsEntityValid(entityId)) {
+        std::cout << "Failed to apply material: Entity " << entityId.id << " not found" << std::endl;
         return;
     }
     
@@ -461,15 +461,17 @@ void GameViewportPanel::ApplyMaterialToEntity(EntityID entityId, const std::stri
     }
     
     // Get or add MaterialComponent
-    auto* materialComponent = entity->GetComponent<MaterialComponent>();
+    auto* materialComponent = entityManager.GetComponent<MaterialComponent>(entityId);
     if (!materialComponent) {
-        materialComponent = entity->AddComponent<MaterialComponent>();
+        MaterialComponent newComponent;
+        newComponent.materialID = materialID;
+        entityManager.AddComponent(entityId, std::move(newComponent));
+    } else {
+        // Apply the new material
+        materialComponent->materialID = materialID;
     }
     
-    // Apply the new material
-    materialComponent->materialID = materialID;
-    
-    std::cout << "Applied material " << materialPath << " (ID: " << materialID << ") to entity " << entityId << " via Scene View" << std::endl;
+    std::cout << "Applied material " << materialPath << " (ID: " << materialID << ") to entity " << entityId.id << " via Scene View" << std::endl;
 }
 
 } // namespace BGE

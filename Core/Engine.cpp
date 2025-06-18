@@ -7,6 +7,7 @@
 #include "Logger.h"
 #include "ConfigManager.h"
 #include "Entity.h"
+#include "ECS/EntityManager.h"
 #include "Input/InputManager.h"
 #include "Systems/SystemManager.h"
 #include "Systems/TransformSystem.h"
@@ -134,8 +135,8 @@ void Engine::RegisterCoreServices() {
     }
     
     // Initialize and register simulation world
-    int worldWidth = configManager.GetInt("simulation.world_width", 512);
-    int worldHeight = configManager.GetInt("simulation.world_height", 512);
+    int worldWidth = configManager.GetInt("simulation.world_width", 2048);
+    int worldHeight = configManager.GetInt("simulation.world_height", 2048);
     auto world = std::make_shared<SimulationWorld>(worldWidth, worldHeight);
     serviceLocator.RegisterService<SimulationWorld>(world);
     BGE_LOG_INFO("Engine", "SimulationWorld service registered");

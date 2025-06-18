@@ -51,6 +51,14 @@ public:
     void EndRenderToTexture();
     uint32_t GetGameTextureId() const { return m_gameTextureId; }
     void GetGameTextureSize(int& width, int& height) const { width = m_gameTextureWidth; height = m_gameTextureHeight; }
+    
+    // Scene view framebuffer support
+    bool CreateSceneFramebuffer(int width, int height);
+    void DestroySceneFramebuffer();
+    void BeginRenderToSceneTexture();
+    void EndRenderToSceneTexture();
+    uint32_t GetSceneTextureId() const { return m_sceneTextureId; }
+    void GetSceneTextureSize(int& width, int& height) const { width = m_sceneTextureWidth; height = m_sceneTextureHeight; }
 
     PixelCamera* GetPixelCamera() const { return m_pixelCamera.get(); }
     PostProcessor* GetPostProcessor() const { return m_postProcessor.get(); }
@@ -75,6 +83,14 @@ private:
     int m_gameTextureWidth = 512;
     int m_gameTextureHeight = 512;
     bool m_renderingToTexture = false;
+    
+    // Render-to-texture framebuffer for scene view
+    uint32_t m_sceneFramebuffer = 0;
+    uint32_t m_sceneTextureId = 0;
+    uint32_t m_sceneDepthBuffer = 0;
+    int m_sceneTextureWidth = 512;
+    int m_sceneTextureHeight = 512;
+    bool m_renderingToSceneTexture = false;
 
     // Placeholder for actual rendering context or device
     void* m_renderContext = nullptr;
