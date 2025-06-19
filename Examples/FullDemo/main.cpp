@@ -97,10 +97,10 @@ public:
         // Trigger particle effects periodically to show system integration
         if (m_demoTime > 3.0f && m_particleSystem) {
             // Create sparks at the AI character location
-            if (m_aiCharacterEntity != INVALID_ENTITY_ID) {
-                auto* entity = EntityManager::Instance().GetEntity(m_aiCharacterEntity);
-                if (entity) {
-                    auto* transform = entity->GetComponent<TransformComponent>();
+            if (m_aiCharacterEntity.IsValid()) {
+                auto& entityManager = EntityManager::Instance();
+                if (entityManager.IsEntityValid(m_aiCharacterEntity)) {
+                    auto* transform = entityManager.GetComponent<TransformComponent>(m_aiCharacterEntity);
                     if (transform) {
                         Vector2 pos(transform->position.x, transform->position.y);
                         m_particleSystem->CreateSparks(pos, 15);
@@ -238,43 +238,47 @@ private:
         auto& entityManager = EntityManager::Instance();
         
         // Create AI-controlled character entity
-        auto aiEntity = entityManager.CreateEntity("AICharacter");
-        if (aiEntity) {
+        EntityID aiEntity = entityManager.CreateEntity("AICharacter");
+        if (aiEntity.IsValid()) {
             // Add transform component at starting position
-            auto* transform = aiEntity->AddComponent<TransformComponent>();
-            transform->position = Vector3(100.0f, 100.0f, 0.0f); // Safe starting position
+            TransformComponent transformComp;
+            transformComp.position = Vector3(100.0f, 100.0f, 0.0f); // Safe starting position
+            entityManager.AddComponent<TransformComponent>(aiEntity, std::move(transformComp));
 
             // Add velocity component for movement
-            auto* velocity = aiEntity->AddComponent<VelocityComponent>();
-            velocity->velocity = Vector3(20.0f, 0.0f, 0.0f); // Initial movement
+            VelocityComponent velocityComp;
+            velocityComp.velocity = Vector3(20.0f, 0.0f, 0.0f); // Initial movement
+            entityManager.AddComponent<VelocityComponent>(aiEntity, std::move(velocityComp));
 
             // TODO: Add AI component when AI system is fully implemented
-            // auto* aiComponent = aiEntity->AddComponent<AIComponent>();
-            // aiComponent->targetPosition = Vector3(1000.0f, 500.0f, 0.0f);
-            // aiComponent->behaviorTree = std::make_shared<BehaviorTree>();
+            // AIComponent aiComp;
+            // aiComp.targetPosition = Vector3(1000.0f, 500.0f, 0.0f);
+            // aiComp.behaviorTree = std::make_shared<BehaviorTree>();
+            // entityManager.AddComponent<AIComponent>(aiEntity, std::move(aiComp));
 
-            m_aiCharacterEntity = aiEntity->GetID();
+            m_aiCharacterEntity = aiEntity;
             BGE_LOG_INFO("FullDemo", "Created AI character entity with Movement System integration");
         }
 
         // Create additional demo entities
-        auto particleEntity = entityManager.CreateEntity("ParticleEmitter");
-        if (particleEntity) {
-            auto* transform = particleEntity->AddComponent<TransformComponent>();
-            transform->position = Vector3(200.0f, 200.0f, 0.0f);
+        EntityID particleEntity = entityManager.CreateEntity("ParticleEmitter");
+        if (particleEntity.IsValid()) {
+            TransformComponent transformComp;
+            transformComp.position = Vector3(200.0f, 200.0f, 0.0f);
+            entityManager.AddComponent<TransformComponent>(particleEntity, std::move(transformComp));
             
             BGE_LOG_INFO("FullDemo", "Created particle emitter entity");
         }
     }
 
     void UpdateAICharacterMovement(float deltaTime) {
-        if (m_aiCharacterEntity == INVALID_ENTITY_ID) return;
+        if (!m_aiCharacterEntity.IsValid()) return;
 
-        auto* entity = EntityManager::Instance().GetEntity(m_aiCharacterEntity);
-        if (!entity) return;
+        auto& entityManager = EntityManager::Instance();
+        if (!entityManager.IsEntityValid(m_aiCharacterEntity)) return;
 
-        auto* transform = entity->GetComponent<TransformComponent>();
-        auto* velocity = entity->GetComponent<VelocityComponent>();
+        auto* transform = entityManager.GetComponent<TransformComponent>(m_aiCharacterEntity);
+        auto* velocity = entityManager.GetComponent<VelocityComponent>(m_aiCharacterEntity);
         
         if (!transform || !velocity) return;
 
@@ -313,7 +317,7 @@ private:
     std::shared_ptr<AssetManager> m_assetManager;
     std::shared_ptr<InputManager> m_inputManager;
     
-    EntityID m_aiCharacterEntity = INVALID_ENTITY_ID;
+    EntityID m_aiCharacterEntity = INVALID_ENTITY;
     float m_demoTime = 0.0f;
     
     // TODO: Add when asset system is fully integrated

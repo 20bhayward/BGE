@@ -12,6 +12,7 @@
 #include <string>
 #include <shared_mutex>
 #include <atomic>
+#include <iostream>
 
 namespace BGE {
 
@@ -55,11 +56,14 @@ public:
         ComponentTypeID typeID = ComponentRegistry::Instance().GetComponentTypeID<T>();
         if (typeID == INVALID_COMPONENT_TYPE) {
             // Auto-register component type
+            std::cout << "EntityManager::AddComponent: Component type not registered, auto-registering: " << typeid(T).name() << std::endl;
             typeID = ComponentRegistry::Instance().RegisterComponent<T>(typeid(T).name());
             if (typeID == INVALID_COMPONENT_TYPE) {
                 BGE_LOG_ERROR("EntityManager", "Failed to register component type");
                 return ECSResult<T*>(ECSErrorInfo(ECSError::InvalidComponent, "Failed to register component type"));
             }
+        } else {
+            std::cout << "EntityManager::AddComponent: Found registered component type with ID: " << typeID << " for " << typeid(T).name() << std::endl;
         }
         
         // Validate component type
@@ -181,13 +185,22 @@ public:
     template<typename T>
     T* GetComponent(EntityID entity) {
         std::shared_lock lock(m_mutex);
-        if (!IsEntityValidUnsafe(entity)) return nullptr;
+        if (!IsEntityValidUnsafe(entity)) {
+            return nullptr;
+        }
         
         const EntityRecord& record = m_entityRecords[entity.GetIndex()];
-        if (!record.IsValid()) return nullptr;
+        if (!record.IsValid()) {
+            return nullptr;
+        }
         
         Archetype* archetype = m_archetypeManager.GetArchetype(record.archetypeIndex);
-        return archetype ? archetype->GetComponent<T>(record.row) : nullptr;
+        if (!archetype) {
+            return nullptr;
+        }
+        
+        T* component = archetype->GetComponent<T>(record.row);
+        return component;
     }
     
     template<typename T>

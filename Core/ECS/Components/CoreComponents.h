@@ -5,6 +5,7 @@
 
 #include "../../Components.h"
 #include "../ComponentRegistry.h"
+#include <iostream>
 
 namespace BGE {
 
@@ -12,9 +13,14 @@ namespace BGE {
 inline void RegisterCoreComponents() {
     auto& registry = ComponentRegistry::Instance();
     
+    std::cout << "RegisterCoreComponents: Starting component registration..." << std::endl;
+    
     // Transform and hierarchy
-    registry.RegisterComponent<TransformComponent>("TransformComponent");
-    registry.RegisterComponent<NameComponent>("NameComponent");
+    auto transformId = registry.RegisterComponent<TransformComponent>("TransformComponent");
+    std::cout << "RegisterCoreComponents: TransformComponent registered with ID: " << transformId << std::endl;
+    
+    auto nameId = registry.RegisterComponent<NameComponent>("NameComponent");
+    std::cout << "RegisterCoreComponents: NameComponent registered with ID: " << nameId << std::endl;
     
     // Physics and movement
     registry.RegisterComponent<VelocityComponent>("VelocityComponent");
@@ -27,6 +33,8 @@ inline void RegisterCoreComponents() {
     // Gameplay
     registry.RegisterComponent<HealthComponent>("HealthComponent");
     registry.RegisterComponent<MaterialComponent>("MaterialComponent");
+    
+    std::cout << "RegisterCoreComponents: Total components registered: " << registry.GetComponentCount() << std::endl;
 }
 
 } // namespace BGE

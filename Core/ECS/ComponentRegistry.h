@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <cstdint>
+#include <iostream>
 
 namespace BGE {
 
@@ -83,8 +84,12 @@ public:
     // Get component type ID
     template<typename T>
     ComponentTypeID GetComponentTypeID() const {
-        auto it = m_typeToID.find(std::type_index(typeid(T)));
-        return it != m_typeToID.end() ? it->second : INVALID_COMPONENT_TYPE;
+        auto typeIndex = std::type_index(typeid(T));
+        auto it = m_typeToID.find(typeIndex);
+        if (it != m_typeToID.end()) {
+            return it->second;
+        }
+        return INVALID_COMPONENT_TYPE;
     }
     
     // Get component type ID by name

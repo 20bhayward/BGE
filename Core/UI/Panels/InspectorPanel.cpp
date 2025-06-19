@@ -20,6 +20,9 @@
 
 namespace BGE {
 
+// Static clipboard definition
+InspectorPanel::ComponentClipboard InspectorPanel::s_componentClipboard;
+
 InspectorPanel::InspectorPanel(const std::string& name)
     : Panel(name, PanelDockPosition::Right) {
     
@@ -392,27 +395,23 @@ void InspectorPanel::RenderMultiSelectionHeader() {
     
     if (m_primarySelection != INVALID_ENTITY) {
         auto& entityManager = EntityManager::Instance();
-        Entity* entity = entityManager.GetEntity(m_primarySelection.GetIndex());
-        if (entity) {
-            auto* nameComponent = entity->GetComponent<NameComponent>();
-            std::string displayName = nameComponent ? nameComponent->name : ("Entity " + std::to_string(m_primarySelection));
-            ImGui::Text("Primary: %s", displayName.c_str());
-        }
+        auto* nameComponent = entityManager.GetComponent<NameComponent>(m_primarySelection);
+        std::string displayName = nameComponent ? nameComponent->name : ("Entity " + std::to_string(m_primarySelection));
+        ImGui::Text("Primary: %s", displayName.c_str());
     }
 }
 
 void InspectorPanel::RenderSingleEntityHeader(EntityID entityId) {
     auto& entityManager = EntityManager::Instance();
-    Entity* entity = entityManager.GetEntity(entityId.GetIndex());
     
-    if (!entity) {
+    if (!entityManager.IsEntityValid(entityId)) {
         ImGui::TextColored(ImVec4(0.8f, 0.4f, 0.4f, 1.0f), "⚠ Invalid entity");
         return;
     }
     
     // Entity name and ID
-    auto* nameComponent = entity->GetComponent<NameComponent>();
-    std::string displayName = nameComponent ? nameComponent->name : ("Entity " + std::to_string(entityId));
+    auto* nameComponent = entityManager.GetComponent<NameComponent>(entityId);
+    std::string displayName = nameComponent ? nameComponent->name : ("Entity " + std::to_string(entityId.id));
     
     ImGui::Text("📦 %s", displayName.c_str());
     ImGui::SameLine();
@@ -429,55 +428,55 @@ void InspectorPanel::RenderSingleEntityHeader(EntityID entityId) {
 
 void InspectorPanel::RenderComponentList(EntityID entityId) {
     auto& entityManager = EntityManager::Instance();
-    Entity* entity = entityManager.GetEntity(entityId.GetIndex());
     
-    if (!entity) {
+    if (!entityManager.IsEntityValid(entityId)) {
         return;
     }
     
+    
     // Render each component type
-    auto* transform = entity->GetComponent<TransformComponent>();
+    auto* transform = entityManager.GetComponent<TransformComponent>(entityId);
     if (transform) {
-        RenderTransformComponent(entity, transform);
+        RenderTransformComponent(entityId, transform);
     }
     
-    auto* nameComp = entity->GetComponent<NameComponent>();
+    auto* nameComp = entityManager.GetComponent<NameComponent>(entityId);
     if (nameComp) {
-        RenderNameComponent(entity, nameComp);
+        RenderNameComponent(entityId, nameComp);
     }
     
-    auto* sprite = entity->GetComponent<SpriteComponent>();
+    auto* sprite = entityManager.GetComponent<SpriteComponent>(entityId);
     if (sprite) {
-        RenderSpriteComponent(entity, sprite);
+        RenderSpriteComponent(entityId, sprite);
     }
     
-    auto* velocity = entity->GetComponent<VelocityComponent>();
+    auto* velocity = entityManager.GetComponent<VelocityComponent>(entityId);
     if (velocity) {
-        RenderVelocityComponent(entity, velocity);
+        RenderVelocityComponent(entityId, velocity);
     }
     
-    auto* health = entity->GetComponent<HealthComponent>();
+    auto* health = entityManager.GetComponent<HealthComponent>(entityId);
     if (health) {
-        RenderHealthComponent(entity, health);
+        RenderHealthComponent(entityId, health);
     }
     
-    auto* material = entity->GetComponent<MaterialComponent>();
+    auto* material = entityManager.GetComponent<MaterialComponent>(entityId);
     if (material) {
-        RenderMaterialComponent(entity, material);
+        RenderMaterialComponent(entityId, material);
     }
     
-    auto* light = entity->GetComponent<LightComponent>();
+    auto* light = entityManager.GetComponent<LightComponent>(entityId);
     if (light) {
-        RenderLightComponent(entity, light);
+        RenderLightComponent(entityId, light);
     }
     
-    auto* rigidbody = entity->GetComponent<RigidbodyComponent>();
+    auto* rigidbody = entityManager.GetComponent<RigidbodyComponent>(entityId);
     if (rigidbody) {
-        RenderRigidbodyComponent(entity, rigidbody);
+        RenderRigidbodyComponent(entityId, rigidbody);
     }
 }
 
-void InspectorPanel::RenderTransformComponent(Entity* entity, TransformComponent* component) {
+void InspectorPanel::RenderTransformComponent(EntityID entityId, TransformComponent* component) {
     bool removeRequested = false;
     if (!RenderComponentHeader("Transform", &removeRequested)) {
         return; // Component is collapsed
@@ -515,17 +514,14 @@ void InspectorPanel::RenderTransformComponent(Entity* entity, TransformComponent
     // Apply changes to all selected entities if this is multi-selection
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetECSEntityID()) continue;
+            if (selectedId == entityId) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
-            if (selectedEntity) {
-                auto* selectedTransform = selectedEntity->GetComponent<TransformComponent>();
-                if (selectedTransform) {
-                    selectedTransform->position = component->position;
-                    selectedTransform->rotation = component->rotation;
-                    selectedTransform->scale = component->scale;
-                }
+            auto* selectedTransform = entityManager.GetComponent<TransformComponent>(selectedId);
+            if (selectedTransform) {
+                selectedTransform->position = component->position;
+                selectedTransform->rotation = component->rotation;
+                selectedTransform->scale = component->scale;
             }
         }
     }
@@ -544,14 +540,14 @@ void InspectorPanel::RenderTransformComponent(Entity* entity, TransformComponent
     ImGui::Spacing();
 }
 
-void InspectorPanel::RenderNameComponent(Entity* entity, NameComponent* component) {
+void InspectorPanel::RenderNameComponent(EntityID entityId, NameComponent* component) {
     bool removeRequested = false;
     if (!RenderComponentHeader("Name", &removeRequested)) {
         return;
     }
     
     if (removeRequested) {
-        RemoveComponentFromEntity(entity->GetID(), "NameComponent");
+        RemoveComponentFromEntity(entityId, "NameComponent");
         return;
     }
     
@@ -560,15 +556,12 @@ void InspectorPanel::RenderNameComponent(Entity* entity, NameComponent* componen
     // Apply changes to all selected entities if this is multi-selection
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetECSEntityID()) continue;
+            if (selectedId == entityId) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
-            if (selectedEntity) {
-                auto* selectedName = selectedEntity->GetComponent<NameComponent>();
-                if (selectedName) {
-                    selectedName->name = component->name;
-                }
+            auto* selectedName = entityManager.GetComponent<NameComponent>(selectedId);
+            if (selectedName) {
+                selectedName->name = component->name;
             }
         }
     }
@@ -577,14 +570,14 @@ void InspectorPanel::RenderNameComponent(Entity* entity, NameComponent* componen
     ImGui::Spacing();
 }
 
-void InspectorPanel::RenderSpriteComponent(Entity* entity, SpriteComponent* component) {
+void InspectorPanel::RenderSpriteComponent(EntityID entityId, SpriteComponent* component) {
     bool removeRequested = false;
     if (!RenderComponentHeader("Sprite", &removeRequested)) {
         return;
     }
     
     if (removeRequested) {
-        RemoveComponentFromEntity(entity->GetID(), "SpriteComponent");
+        RemoveComponentFromEntity(entityId, "SpriteComponent");
         return;
     }
     
@@ -599,19 +592,16 @@ void InspectorPanel::RenderSpriteComponent(Entity* entity, SpriteComponent* comp
     // Apply changes to all selected entities
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetECSEntityID()) continue;
+            if (selectedId == entityId) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
-            if (selectedEntity) {
-                auto* selectedSprite = selectedEntity->GetComponent<SpriteComponent>();
-                if (selectedSprite) {
-                    selectedSprite->texturePath = component->texturePath;
-                    selectedSprite->size = component->size;
-                    selectedSprite->uvOffset = component->uvOffset;
-                    selectedSprite->uvScale = component->uvScale;
-                    selectedSprite->visible = component->visible;
-                }
+            auto* selectedSprite = entityManager.GetComponent<SpriteComponent>(selectedId);
+            if (selectedSprite) {
+                selectedSprite->texturePath = component->texturePath;
+                selectedSprite->size = component->size;
+                selectedSprite->uvOffset = component->uvOffset;
+                selectedSprite->uvScale = component->uvScale;
+                selectedSprite->visible = component->visible;
             }
         }
     }
@@ -620,14 +610,14 @@ void InspectorPanel::RenderSpriteComponent(Entity* entity, SpriteComponent* comp
     ImGui::Spacing();
 }
 
-void InspectorPanel::RenderVelocityComponent(Entity* entity, VelocityComponent* component) {
+void InspectorPanel::RenderVelocityComponent(EntityID entityId, VelocityComponent* component) {
     bool removeRequested = false;
     if (!RenderComponentHeader("Velocity", &removeRequested)) {
         return;
     }
     
     if (removeRequested) {
-        RemoveComponentFromEntity(entity->GetID(), "VelocityComponent");
+        RemoveComponentFromEntity(entityId, "VelocityComponent");
         return;
     }
     
@@ -640,17 +630,14 @@ void InspectorPanel::RenderVelocityComponent(Entity* entity, VelocityComponent* 
     // Apply changes to all selected entities
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetECSEntityID()) continue;
+            if (selectedId == entityId) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
-            if (selectedEntity) {
-                auto* selectedVelocity = selectedEntity->GetComponent<VelocityComponent>();
-                if (selectedVelocity) {
-                    selectedVelocity->velocity = component->velocity;
-                    selectedVelocity->acceleration = component->acceleration;
-                    selectedVelocity->damping = component->damping;
-                }
+            auto* selectedVelocity = entityManager.GetComponent<VelocityComponent>(selectedId);
+            if (selectedVelocity) {
+                selectedVelocity->velocity = component->velocity;
+                selectedVelocity->acceleration = component->acceleration;
+                selectedVelocity->damping = component->damping;
             }
         }
     }
@@ -659,14 +646,14 @@ void InspectorPanel::RenderVelocityComponent(Entity* entity, VelocityComponent* 
     ImGui::Spacing();
 }
 
-void InspectorPanel::RenderHealthComponent(Entity* entity, HealthComponent* component) {
+void InspectorPanel::RenderHealthComponent(EntityID entityId, HealthComponent* component) {
     bool removeRequested = false;
     if (!RenderComponentHeader("Health", &removeRequested)) {
         return;
     }
     
     if (removeRequested) {
-        RemoveComponentFromEntity(entity->GetID(), "HealthComponent");
+        RemoveComponentFromEntity(entityId, "HealthComponent");
         return;
     }
     
@@ -689,17 +676,14 @@ void InspectorPanel::RenderHealthComponent(Entity* entity, HealthComponent* comp
     // Apply changes to all selected entities
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetECSEntityID()) continue;
+            if (selectedId == entityId) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
-            if (selectedEntity) {
-                auto* selectedHealth = selectedEntity->GetComponent<HealthComponent>();
-                if (selectedHealth) {
-                    selectedHealth->maxHealth = component->maxHealth;
-                    selectedHealth->currentHealth = component->currentHealth;
-                    selectedHealth->invulnerable = component->invulnerable;
-                }
+            auto* selectedHealth = entityManager.GetComponent<HealthComponent>(selectedId);
+            if (selectedHealth) {
+                selectedHealth->maxHealth = component->maxHealth;
+                selectedHealth->currentHealth = component->currentHealth;
+                selectedHealth->invulnerable = component->invulnerable;
             }
         }
     }
@@ -708,14 +692,14 @@ void InspectorPanel::RenderHealthComponent(Entity* entity, HealthComponent* comp
     ImGui::Spacing();
 }
 
-void InspectorPanel::RenderMaterialComponent(Entity* entity, MaterialComponent* component) {
+void InspectorPanel::RenderMaterialComponent(EntityID entityId, MaterialComponent* component) {
     bool removeRequested = false;
     if (!RenderComponentHeader("Material", &removeRequested)) {
         return;
     }
     
     if (removeRequested) {
-        RemoveComponentFromEntity(entity->GetID(), "MaterialComponent");
+        RemoveComponentFromEntity(entityId, "MaterialComponent");
         return;
     }
     
@@ -729,18 +713,15 @@ void InspectorPanel::RenderMaterialComponent(Entity* entity, MaterialComponent* 
     // Apply changes to all selected entities
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetECSEntityID()) continue;
+            if (selectedId == entityId) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
-            if (selectedEntity) {
-                auto* selectedMaterial = selectedEntity->GetComponent<MaterialComponent>();
-                if (selectedMaterial) {
-                    selectedMaterial->materialID = component->materialID;
-                    selectedMaterial->temperature = component->temperature;
-                    selectedMaterial->density = component->density;
-                    selectedMaterial->hardness = component->hardness;
-                }
+            auto* selectedMaterial = entityManager.GetComponent<MaterialComponent>(selectedId);
+            if (selectedMaterial) {
+                selectedMaterial->materialID = component->materialID;
+                selectedMaterial->temperature = component->temperature;
+                selectedMaterial->density = component->density;
+                selectedMaterial->hardness = component->hardness;
             }
         }
     }
@@ -782,11 +763,11 @@ bool InspectorPanel::RenderComponentHeader(const char* componentName, bool* remo
         }
         
         if (ImGui::MenuItem("Copy Component")) {
-            // TODO: Implement copy functionality  
+            CopyComponent(m_primarySelection, m_contextMenuComponent);
         }
         
-        if (ImGui::MenuItem("Paste Component Values")) {
-            // TODO: Implement paste functionality
+        if (ImGui::MenuItem("Paste Component Values", nullptr, false, CanPasteComponent(m_contextMenuComponent))) {
+            PasteComponent(m_primarySelection, m_contextMenuComponent);
         }
         
         ImGui::Separator();
@@ -844,17 +825,14 @@ void InspectorPanel::RenderAddComponentPopup() {
             bool hasComponent = false;
             if (m_primarySelection != INVALID_ENTITY) {
                 auto& entityManager = EntityManager::Instance();
-                Entity* entity = entityManager.GetEntity(m_primarySelection.GetIndex());
-                if (entity) {
-                    if (componentType == "TransformComponent") hasComponent = entity->GetComponent<TransformComponent>() != nullptr;
-                    else if (componentType == "NameComponent") hasComponent = entity->GetComponent<NameComponent>() != nullptr;
-                    else if (componentType == "SpriteComponent") hasComponent = entity->GetComponent<SpriteComponent>() != nullptr;
-                    else if (componentType == "VelocityComponent") hasComponent = entity->GetComponent<VelocityComponent>() != nullptr;
-                    else if (componentType == "HealthComponent") hasComponent = entity->GetComponent<HealthComponent>() != nullptr;
-                    else if (componentType == "MaterialComponent") hasComponent = entity->GetComponent<MaterialComponent>() != nullptr;
-                    else if (componentType == "LightComponent") hasComponent = entity->GetComponent<LightComponent>() != nullptr;
-                    else if (componentType == "RigidbodyComponent") hasComponent = entity->GetComponent<RigidbodyComponent>() != nullptr;
-                }
+                if (componentType == "TransformComponent") hasComponent = entityManager.GetComponent<TransformComponent>(m_primarySelection) != nullptr;
+                else if (componentType == "NameComponent") hasComponent = entityManager.GetComponent<NameComponent>(m_primarySelection) != nullptr;
+                else if (componentType == "SpriteComponent") hasComponent = entityManager.GetComponent<SpriteComponent>(m_primarySelection) != nullptr;
+                else if (componentType == "VelocityComponent") hasComponent = entityManager.GetComponent<VelocityComponent>(m_primarySelection) != nullptr;
+                else if (componentType == "HealthComponent") hasComponent = entityManager.GetComponent<HealthComponent>(m_primarySelection) != nullptr;
+                else if (componentType == "MaterialComponent") hasComponent = entityManager.GetComponent<MaterialComponent>(m_primarySelection) != nullptr;
+                else if (componentType == "LightComponent") hasComponent = entityManager.GetComponent<LightComponent>(m_primarySelection) != nullptr;
+                else if (componentType == "RigidbodyComponent") hasComponent = entityManager.GetComponent<RigidbodyComponent>(m_primarySelection) != nullptr;
             }
             
             if (hasComponent) {
@@ -883,50 +861,49 @@ void InspectorPanel::RenderAddComponentPopup() {
 
 void InspectorPanel::AddComponentToEntity(EntityID entityId, const std::string& componentType) {
     auto& entityManager = EntityManager::Instance();
-    Entity* entity = entityManager.GetEntity(entityId.GetIndex());
     
-    if (!entity) return;
+    if (!entityManager.IsEntityValid(entityId)) return;
     
     if (componentType == "TransformComponent") {
-        if (!entity->GetComponent<TransformComponent>()) {
+        if (!entityManager.HasComponent<TransformComponent>(entityId)) {
             TransformComponent transformComp;
-            entity->AddComponent<TransformComponent>(std::move(transformComp));
+            entityManager.AddComponent<TransformComponent>(entityId, std::move(transformComp));
         }
     } else if (componentType == "NameComponent") {
-        if (!entity->GetComponent<NameComponent>()) {
+        if (!entityManager.HasComponent<NameComponent>(entityId)) {
             NameComponent nameComp;
             nameComp.name = "New Entity";
-            entity->AddComponent<NameComponent>(std::move(nameComp));
+            entityManager.AddComponent<NameComponent>(entityId, std::move(nameComp));
         }
     } else if (componentType == "SpriteComponent") {
-        if (!entity->GetComponent<SpriteComponent>()) {
+        if (!entityManager.HasComponent<SpriteComponent>(entityId)) {
             SpriteComponent spriteComp;
-            entity->AddComponent<SpriteComponent>(std::move(spriteComp));
+            entityManager.AddComponent<SpriteComponent>(entityId, std::move(spriteComp));
         }
     } else if (componentType == "VelocityComponent") {
-        if (!entity->GetComponent<VelocityComponent>()) {
+        if (!entityManager.HasComponent<VelocityComponent>(entityId)) {
             VelocityComponent velocityComp;
-            entity->AddComponent<VelocityComponent>(std::move(velocityComp));
+            entityManager.AddComponent<VelocityComponent>(entityId, std::move(velocityComp));
         }
     } else if (componentType == "HealthComponent") {
-        if (!entity->GetComponent<HealthComponent>()) {
+        if (!entityManager.HasComponent<HealthComponent>(entityId)) {
             HealthComponent healthComp;
-            entity->AddComponent<HealthComponent>(std::move(healthComp));
+            entityManager.AddComponent<HealthComponent>(entityId, std::move(healthComp));
         }
     } else if (componentType == "MaterialComponent") {
-        if (!entity->GetComponent<MaterialComponent>()) {
+        if (!entityManager.HasComponent<MaterialComponent>(entityId)) {
             MaterialComponent materialComp;
-            entity->AddComponent<MaterialComponent>(std::move(materialComp));
+            entityManager.AddComponent<MaterialComponent>(entityId, std::move(materialComp));
         }
     } else if (componentType == "LightComponent") {
-        if (!entity->GetComponent<LightComponent>()) {
+        if (!entityManager.HasComponent<LightComponent>(entityId)) {
             LightComponent lightComp;
-            entity->AddComponent<LightComponent>(std::move(lightComp));
+            entityManager.AddComponent<LightComponent>(entityId, std::move(lightComp));
         }
     } else if (componentType == "RigidbodyComponent") {
-        if (!entity->GetComponent<RigidbodyComponent>()) {
+        if (!entityManager.HasComponent<RigidbodyComponent>(entityId)) {
             RigidbodyComponent rigidbodyComp;
-            entity->AddComponent<RigidbodyComponent>(std::move(rigidbodyComp));
+            entityManager.AddComponent<RigidbodyComponent>(entityId, std::move(rigidbodyComp));
         }
     }
     
@@ -935,24 +912,23 @@ void InspectorPanel::AddComponentToEntity(EntityID entityId, const std::string& 
 
 void InspectorPanel::RemoveComponentFromEntity(EntityID entityId, const std::string& componentType) {
     auto& entityManager = EntityManager::Instance();
-    Entity* entity = entityManager.GetEntity(entityId.GetIndex());
     
-    if (!entity) return;
+    if (!entityManager.IsEntityValid(entityId)) return;
     
     if (componentType == "NameComponent") {
-        entity->RemoveComponent<NameComponent>();
+        entityManager.RemoveComponent<NameComponent>(entityId);
     } else if (componentType == "SpriteComponent") {
-        entity->RemoveComponent<SpriteComponent>();
+        entityManager.RemoveComponent<SpriteComponent>(entityId);
     } else if (componentType == "VelocityComponent") {
-        entity->RemoveComponent<VelocityComponent>();
+        entityManager.RemoveComponent<VelocityComponent>(entityId);
     } else if (componentType == "HealthComponent") {
-        entity->RemoveComponent<HealthComponent>();
+        entityManager.RemoveComponent<HealthComponent>(entityId);
     } else if (componentType == "MaterialComponent") {
-        entity->RemoveComponent<MaterialComponent>();
+        entityManager.RemoveComponent<MaterialComponent>(entityId);
     } else if (componentType == "LightComponent") {
-        entity->RemoveComponent<LightComponent>();
+        entityManager.RemoveComponent<LightComponent>(entityId);
     } else if (componentType == "RigidbodyComponent") {
-        entity->RemoveComponent<RigidbodyComponent>();
+        entityManager.RemoveComponent<RigidbodyComponent>(entityId);
     }
     
     std::cout << "Removed " << componentType << " from entity " << entityId << std::endl;
@@ -1078,14 +1054,14 @@ void InspectorPanel::ClearInconsistentProperties() {
     m_inconsistentProperties.clear();
 }
 
-void InspectorPanel::RenderLightComponent(Entity* entity, LightComponent* component) {
+void InspectorPanel::RenderLightComponent(EntityID entityId, LightComponent* component) {
     bool removeRequested = false;
     if (!RenderComponentHeader("Light", &removeRequested)) {
         return;
     }
     
     if (removeRequested) {
-        RemoveComponentFromEntity(entity->GetID(), "LightComponent");
+        RemoveComponentFromEntity(entityId, "LightComponent");
         return;
     }
     
@@ -1113,21 +1089,18 @@ void InspectorPanel::RenderLightComponent(Entity* entity, LightComponent* compon
     // Apply changes to all selected entities
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetECSEntityID()) continue;
+            if (selectedId == entityId) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
-            if (selectedEntity) {
-                auto* selectedLight = selectedEntity->GetComponent<LightComponent>();
-                if (selectedLight) {
-                    selectedLight->type = component->type;
-                    selectedLight->color = component->color;
-                    selectedLight->intensity = component->intensity;
-                    selectedLight->range = component->range;
-                    selectedLight->innerCone = component->innerCone;
-                    selectedLight->outerCone = component->outerCone;
-                    selectedLight->enabled = component->enabled;
-                }
+            auto* selectedLight = entityManager.GetComponent<LightComponent>(selectedId);
+            if (selectedLight) {
+                selectedLight->type = component->type;
+                selectedLight->color = component->color;
+                selectedLight->intensity = component->intensity;
+                selectedLight->range = component->range;
+                selectedLight->innerCone = component->innerCone;
+                selectedLight->outerCone = component->outerCone;
+                selectedLight->enabled = component->enabled;
             }
         }
     }
@@ -1136,14 +1109,14 @@ void InspectorPanel::RenderLightComponent(Entity* entity, LightComponent* compon
     ImGui::Spacing();
 }
 
-void InspectorPanel::RenderRigidbodyComponent(Entity* entity, RigidbodyComponent* component) {
+void InspectorPanel::RenderRigidbodyComponent(EntityID entityId, RigidbodyComponent* component) {
     bool removeRequested = false;
     if (!RenderComponentHeader("Rigidbody", &removeRequested)) {
         return;
     }
     
     if (removeRequested) {
-        RemoveComponentFromEntity(entity->GetID(), "RigidbodyComponent");
+        RemoveComponentFromEntity(entityId, "RigidbodyComponent");
         return;
     }
     
@@ -1160,21 +1133,18 @@ void InspectorPanel::RenderRigidbodyComponent(Entity* entity, RigidbodyComponent
     // Apply changes to all selected entities
     if (changed && m_selectedEntities.size() > 1) {
         for (EntityID selectedId : m_selectedEntities) {
-            if (selectedId == entity->GetECSEntityID()) continue;
+            if (selectedId == entityId) continue;
             
             auto& entityManager = EntityManager::Instance();
-            Entity* selectedEntity = entityManager.GetEntity(selectedId.GetIndex());
-            if (selectedEntity) {
-                auto* selectedRigidbody = selectedEntity->GetComponent<RigidbodyComponent>();
-                if (selectedRigidbody) {
-                    selectedRigidbody->mass = component->mass;
-                    selectedRigidbody->velocity = component->velocity;
-                    selectedRigidbody->angularVelocity = component->angularVelocity;
-                    selectedRigidbody->drag = component->drag;
-                    selectedRigidbody->angularDrag = component->angularDrag;
-                    selectedRigidbody->useGravity = component->useGravity;
-                    selectedRigidbody->isKinematic = component->isKinematic;
-                }
+            auto* selectedRigidbody = entityManager.GetComponent<RigidbodyComponent>(selectedId);
+            if (selectedRigidbody) {
+                selectedRigidbody->mass = component->mass;
+                selectedRigidbody->velocity = component->velocity;
+                selectedRigidbody->angularVelocity = component->angularVelocity;
+                selectedRigidbody->drag = component->drag;
+                selectedRigidbody->angularDrag = component->angularDrag;
+                selectedRigidbody->useGravity = component->useGravity;
+                selectedRigidbody->isKinematic = component->isKinematic;
             }
         }
     }
@@ -1313,6 +1283,158 @@ std::string InspectorPanel::OpenNativeFileDialog() {
     std::cerr << "Native file dialog not implemented for this platform" << std::endl;
     return "";
 #endif
+}
+
+void InspectorPanel::CopyComponent(EntityID entityId, const std::string& componentType) {
+    auto& entityManager = EntityManager::Instance();
+    
+    // Clear previous clipboard data
+    s_componentClipboard.componentData.clear();
+    s_componentClipboard.hasData = false;
+    
+    // Copy component data based on type
+    if (componentType == "Transform") {
+        auto* comp = entityManager.GetComponent<TransformComponent>(entityId);
+        if (comp) {
+            s_componentClipboard.componentType = componentType;
+            s_componentClipboard.componentData.resize(sizeof(TransformComponent));
+            std::memcpy(s_componentClipboard.componentData.data(), comp, sizeof(TransformComponent));
+            s_componentClipboard.hasData = true;
+        }
+    } else if (componentType == "Velocity") {
+        auto* comp = entityManager.GetComponent<VelocityComponent>(entityId);
+        if (comp) {
+            s_componentClipboard.componentType = componentType;
+            s_componentClipboard.componentData.resize(sizeof(VelocityComponent));
+            std::memcpy(s_componentClipboard.componentData.data(), comp, sizeof(VelocityComponent));
+            s_componentClipboard.hasData = true;
+        }
+    } else if (componentType == "Name") {
+        auto* comp = entityManager.GetComponent<NameComponent>(entityId);
+        if (comp) {
+            s_componentClipboard.componentType = componentType;
+            // For components with dynamic data, we need a different approach
+            // For now, just store the name string
+            std::string nameData = comp->name;
+            s_componentClipboard.componentData.resize(nameData.size() + 1);
+            std::memcpy(s_componentClipboard.componentData.data(), nameData.c_str(), nameData.size() + 1);
+            s_componentClipboard.hasData = true;
+        }
+    } else if (componentType == "Sprite") {
+        auto* comp = entityManager.GetComponent<SpriteComponent>(entityId);
+        if (comp) {
+            s_componentClipboard.componentType = componentType;
+            s_componentClipboard.componentData.resize(sizeof(SpriteComponent));
+            std::memcpy(s_componentClipboard.componentData.data(), comp, sizeof(SpriteComponent));
+            s_componentClipboard.hasData = true;
+        }
+    } else if (componentType == "Material") {
+        auto* comp = entityManager.GetComponent<MaterialComponent>(entityId);
+        if (comp) {
+            s_componentClipboard.componentType = componentType;
+            s_componentClipboard.componentData.resize(sizeof(MaterialComponent));
+            std::memcpy(s_componentClipboard.componentData.data(), comp, sizeof(MaterialComponent));
+            s_componentClipboard.hasData = true;
+        }
+    } else if (componentType == "Health") {
+        auto* comp = entityManager.GetComponent<HealthComponent>(entityId);
+        if (comp) {
+            s_componentClipboard.componentType = componentType;
+            s_componentClipboard.componentData.resize(sizeof(HealthComponent));
+            std::memcpy(s_componentClipboard.componentData.data(), comp, sizeof(HealthComponent));
+            s_componentClipboard.hasData = true;
+        }
+    } else if (componentType == "Light") {
+        auto* comp = entityManager.GetComponent<LightComponent>(entityId);
+        if (comp) {
+            s_componentClipboard.componentType = componentType;
+            s_componentClipboard.componentData.resize(sizeof(LightComponent));
+            std::memcpy(s_componentClipboard.componentData.data(), comp, sizeof(LightComponent));
+            s_componentClipboard.hasData = true;
+        }
+    } else if (componentType == "Rigidbody") {
+        auto* comp = entityManager.GetComponent<RigidbodyComponent>(entityId);
+        if (comp) {
+            s_componentClipboard.componentType = componentType;
+            s_componentClipboard.componentData.resize(sizeof(RigidbodyComponent));
+            std::memcpy(s_componentClipboard.componentData.data(), comp, sizeof(RigidbodyComponent));
+            s_componentClipboard.hasData = true;
+        }
+    }
+    
+    if (s_componentClipboard.hasData) {
+        std::cout << "Copied " << componentType << " component to clipboard" << std::endl;
+    }
+}
+
+void InspectorPanel::PasteComponent(EntityID entityId, const std::string& componentType) {
+    if (!s_componentClipboard.hasData || s_componentClipboard.componentType != componentType) {
+        return;
+    }
+    
+    auto& entityManager = EntityManager::Instance();
+    
+    // Paste component data based on type
+    if (componentType == "Transform") {
+        auto* comp = entityManager.GetComponent<TransformComponent>(entityId);
+        if (comp && s_componentClipboard.componentData.size() == sizeof(TransformComponent)) {
+            TransformComponent* clipboardData = reinterpret_cast<TransformComponent*>(s_componentClipboard.componentData.data());
+            // Copy position, rotation, scale but not parent/children relationships
+            comp->position = clipboardData->position;
+            comp->rotation = clipboardData->rotation;
+            comp->scale = clipboardData->scale;
+        }
+    } else if (componentType == "Velocity") {
+        auto* comp = entityManager.GetComponent<VelocityComponent>(entityId);
+        if (comp && s_componentClipboard.componentData.size() == sizeof(VelocityComponent)) {
+            std::memcpy(comp, s_componentClipboard.componentData.data(), sizeof(VelocityComponent));
+        }
+    } else if (componentType == "Name") {
+        auto* comp = entityManager.GetComponent<NameComponent>(entityId);
+        if (comp && !s_componentClipboard.componentData.empty()) {
+            comp->name = std::string(reinterpret_cast<const char*>(s_componentClipboard.componentData.data()));
+        }
+    } else if (componentType == "Sprite") {
+        auto* comp = entityManager.GetComponent<SpriteComponent>(entityId);
+        if (comp && s_componentClipboard.componentData.size() == sizeof(SpriteComponent)) {
+            std::memcpy(comp, s_componentClipboard.componentData.data(), sizeof(SpriteComponent));
+        }
+    } else if (componentType == "Material") {
+        auto* comp = entityManager.GetComponent<MaterialComponent>(entityId);
+        if (comp && s_componentClipboard.componentData.size() == sizeof(MaterialComponent)) {
+            std::memcpy(comp, s_componentClipboard.componentData.data(), sizeof(MaterialComponent));
+        }
+    } else if (componentType == "Health") {
+        auto* comp = entityManager.GetComponent<HealthComponent>(entityId);
+        if (comp && s_componentClipboard.componentData.size() == sizeof(HealthComponent)) {
+            std::memcpy(comp, s_componentClipboard.componentData.data(), sizeof(HealthComponent));
+        }
+    } else if (componentType == "Light") {
+        auto* comp = entityManager.GetComponent<LightComponent>(entityId);
+        if (comp && s_componentClipboard.componentData.size() == sizeof(LightComponent)) {
+            std::memcpy(comp, s_componentClipboard.componentData.data(), sizeof(LightComponent));
+        }
+    } else if (componentType == "Rigidbody") {
+        auto* comp = entityManager.GetComponent<RigidbodyComponent>(entityId);
+        if (comp && s_componentClipboard.componentData.size() == sizeof(RigidbodyComponent)) {
+            std::memcpy(comp, s_componentClipboard.componentData.data(), sizeof(RigidbodyComponent));
+        }
+    }
+    
+    // Apply to all selected entities if multi-selection
+    if (m_selectedEntities.size() > 1) {
+        for (EntityID entity : m_selectedEntities) {
+            if (entity != entityId) {
+                PasteComponent(entity, componentType);
+            }
+        }
+    }
+    
+    std::cout << "Pasted " << componentType << " component from clipboard" << std::endl;
+}
+
+bool InspectorPanel::CanPasteComponent(const std::string& componentType) const {
+    return s_componentClipboard.hasData && s_componentClipboard.componentType == componentType;
 }
 
 } // namespace BGE

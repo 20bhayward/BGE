@@ -217,11 +217,19 @@ void EntityManager::MoveEntityComponents(EntityID /*entity*/, const EntityRecord
         const ComponentInfo* info = ComponentRegistry::Instance().GetComponentInfo(typeID);
         if (!info) continue;
         
-        // Get storages
+        // Get storages from old archetype
         IComponentStorage* oldStorage = oldArchetype->GetComponentStorage(typeID);
-        IComponentStorage* newStorage = newArchetype->GetComponentStorage(typeID);
+        if (!oldStorage) continue; // Skip if old storage doesn't exist
         
-        if (!oldStorage || !newStorage) continue;
+        // For new storage, we need to ensure it exists but can't create it generically
+        // This will be handled by the specific SetComponent call later
+        // For now, we skip components that don't have storage yet
+        IComponentStorage* newStorage = newArchetype->GetComponentStorage(typeID);
+        if (!newStorage) {
+            BGE_LOG_WARNING("EntityManager", "Skipping component type " + std::to_string(typeID) + 
+                          " - storage not yet created in new archetype");
+            continue;
+        }
         
         // Copy component data
         const void* oldData = oldStorage->GetRaw(oldRecord.row);

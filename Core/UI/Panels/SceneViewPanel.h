@@ -130,6 +130,9 @@ private:
     
     // Stored viewport position for gizmo rendering
     ImVec2 m_viewportScreenPos;
+    
+    // Debug
+    mutable int m_debugPrintTimer = 0;
 };
 
 } // namespace BGE

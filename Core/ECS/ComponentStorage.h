@@ -112,6 +112,7 @@ public:
     virtual void CopyConstruct(void* dst, const void* src) = 0;
     virtual void MoveConstruct(void* dst, void* src) = 0;
     virtual void MoveFrom(size_t dstIndex, size_t srcIndex) = 0;
+    virtual void PushDefault() = 0;  // Add default-constructed element
 };
 
 // Type-erased wrapper for ComponentStorage
@@ -160,6 +161,10 @@ public:
     
     void MoveFrom(size_t dstIndex, size_t srcIndex) override {
         m_storage.Get(dstIndex) = std::move(m_storage.Get(srcIndex));
+    }
+    
+    void PushDefault() override {
+        m_storage.Emplace();
     }
     
     ComponentStorage<T>& GetTypedStorage() { return m_storage; }
@@ -310,6 +315,10 @@ public:
         void* dst = GetRaw(m_size);
         ConstructAt(dst);
         return m_size++;
+    }
+    
+    void PushDefault() override {
+        AddDefault();
     }
     
 private:

@@ -11,6 +11,7 @@
 #include <memory>
 #include <algorithm>
 #include <bitset>
+#include <iostream>
 
 namespace BGE {
 
@@ -55,9 +56,24 @@ public:
         
         m_entities.push_back(entity);
         
-        // Allocate space in each component storage
-        for (auto& [typeID, storage] : m_componentStorages) {
-            storage->Reserve(m_entities.size());
+        // Initialize storages for all component types
+        for (ComponentTypeID typeID : m_componentTypes) {
+            // Ensure storage exists
+            if (m_componentStorages.find(typeID) == m_componentStorages.end()) {
+                // Create storage using component info
+                const ComponentInfo* info = ComponentRegistry::Instance().GetComponentInfo(typeID);
+                if (info) {
+                    // Create generic storage for now
+                    // TODO: Add factory to ComponentInfo to create proper typed storage
+                    m_componentStorages[typeID] = std::make_unique<GenericComponentStorage>(*info);
+                }
+            }
+            
+            // Add default element for this entity
+            IComponentStorage* storage = m_componentStorages[typeID].get();
+            if (storage) {
+                storage->PushDefault();
+            }
         }
         
         return row;
@@ -99,10 +115,38 @@ public:
     template<typename T>
     ComponentStorage<T>* GetComponentStorage() {
         ComponentTypeID typeID = ComponentRegistry::Instance().GetComponentTypeID<T>();
+        
         auto it = m_componentStorages.find(typeID);
         if (it != m_componentStorages.end()) {
             auto* typed = dynamic_cast<TypedComponentStorage<T>*>(it->second.get());
-            return typed ? &typed->GetTypedStorage() : nullptr;
+            if (typed) {
+                return &typed->GetTypedStorage();
+            }
+            
+            // Storage exists but is wrong type (GenericComponentStorage)
+            // Replace it with proper typed storage, preserving existing data
+            if (HasComponent(typeID)) {
+                // Save old storage size
+                size_t oldSize = it->second->Size();
+                
+                // Create new typed storage
+                auto newStorage = CreateStorageForComponent<T>();
+                auto* typedNew = dynamic_cast<TypedComponentStorage<T>*>(newStorage.get());
+                if (typedNew) {
+                    // Ensure new storage has same number of elements
+                    auto& storage = typedNew->GetTypedStorage();
+                    storage.Reserve(oldSize);
+                    for (size_t i = 0; i < oldSize; ++i) {
+                        storage.Emplace();
+                    }
+                    
+                    // Replace storage
+                    m_componentStorages[typeID] = std::move(newStorage);
+                    return &typedNew->GetTypedStorage();
+                }
+            }
+            
+            return nullptr;
         }
         
         // Create storage if it doesn't exist and this archetype should have it
@@ -115,8 +159,8 @@ public:
         return nullptr;
     }
     
-    // Get type-erased component storage
-    IComponentStorage* GetComponentStorage(ComponentTypeID typeID) {
+    // Get type-erased component storage (read-only, doesn't create)
+    IComponentStorage* GetComponentStorage(ComponentTypeID typeID) const {
         auto it = m_componentStorages.find(typeID);
         return it != m_componentStorages.end() ? it->second.get() : nullptr;
     }
@@ -125,18 +169,29 @@ public:
     template<typename T>
     T* GetComponent(uint32_t row) {
         auto* storage = GetComponentStorage<T>();
-        return storage && row < storage->Size() ? &storage->Get(row) : nullptr;
+        if (!storage) {
+            return nullptr;
+        }
+        if (row >= storage->Size()) {
+            return nullptr;
+        }
+        return &storage->Get(row);
     }
     
     // Set component data
     template<typename T>
     void SetComponent(uint32_t row, T&& component) {
         auto* storage = GetComponentStorage<T>();
-        if (!storage) return;
+        if (!storage) {
+            return;
+        }
         
-        // Ensure storage is large enough
-        while (storage->Size() <= row) {
-            storage->Emplace();
+        // Storage should already have the element from AddEntity
+        if (row >= storage->Size()) {
+            // Add missing elements as fallback
+            while (storage->Size() <= row) {
+                storage->Emplace();
+            }
         }
         
         storage->Get(row) = std::forward<T>(component);

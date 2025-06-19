@@ -7,6 +7,7 @@
 #include "../../Core/ConfigManager.h"
 #include "../../Core/Entity.h"
 #include "../../Core/ECS/EntityManager.h"
+#include "../../Core/ECS/Components/CoreComponents.h"
 #include "../../Core/Components.h"
 #include "../../Core/Input/MaterialTools.h"
 #include "../../Core/UI/ApplicationUI.h"
@@ -26,6 +27,10 @@ public:
     bool HandlesWorldRendering() const override { return true; }
     
     bool Initialize() override {
+        // Register core ECS components
+        BGE::RegisterCoreComponents();
+        BGE_LOG_INFO("InteractiveEditor", "Registered core ECS components");
+        
         BGE_LOG_INFO("InteractiveEditor", "=== BGE Interactive Material Editor ===");
         BGE_LOG_INFO("InteractiveEditor", "");
         BGE_LOG_INFO("InteractiveEditor", "Three specialized editing modes available:");
@@ -434,38 +439,8 @@ private:
     }
     
     void CreateDefaultScene() {
-        auto& entityManager = EntityManager::Instance();
-        
-        // Create Main Camera
-        EntityID mainCamera = entityManager.CreateEntity("Main Camera");
-        entityManager.AddComponent<TransformComponent>(mainCamera, TransformComponent{Vector3{0, 0, 10}});
-        entityManager.AddComponent<NameComponent>(mainCamera, NameComponent{"Main Camera"});
-        // Add visual components so it shows up in scene
-        entityManager.AddComponent<SpriteComponent>(mainCamera, SpriteComponent{});
-        auto cameraMaterialResult = entityManager.AddComponent<MaterialComponent>(mainCamera, MaterialComponent{});
-        if (cameraMaterialResult) {
-            cameraMaterialResult.GetValue()->materialID = 10; // Unique material ID for camera
-        }
-        
-        // Create Directional Light
-        EntityID directionalLight = entityManager.CreateEntity("Directional Light");
-        entityManager.AddComponent<TransformComponent>(directionalLight, TransformComponent{Vector3{0, 10, 5}});
-        entityManager.AddComponent<NameComponent>(directionalLight, NameComponent{"Directional Light"});
-        // Add actual light component
-        LightComponent lightComp;
-        lightComp.type = LightComponent::Directional;
-        lightComp.color = Vector3{1.0f, 1.0f, 1.0f};  // White light
-        lightComp.intensity = 1.0f;
-        lightComp.enabled = true;
-        entityManager.AddComponent<LightComponent>(directionalLight, std::move(lightComp));
-        // Add visual components so it shows up in scene
-        entityManager.AddComponent<SpriteComponent>(directionalLight, SpriteComponent{});
-        auto lightMaterialResult = entityManager.AddComponent<MaterialComponent>(directionalLight, MaterialComponent{});
-        if (lightMaterialResult) {
-            lightMaterialResult.GetValue()->materialID = 11; // Unique material ID for light
-        }
-        
-        BGE_LOG_INFO("InteractiveEditor", "Created clean default scene with Main Camera and Directional Light");
+        // No default entities - start with empty scene
+        BGE_LOG_INFO("InteractiveEditor", "Starting with empty scene - use Hierarchy panel to create entities");
     }
     
     std::shared_ptr<SimulationWorld> m_world;

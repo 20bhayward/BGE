@@ -8,6 +8,7 @@
 #include "ConfigManager.h"
 #include "Entity.h"
 #include "ECS/EntityManager.h"
+#include "ECS/Components/CoreComponents.h"
 #include "Input/InputManager.h"
 #include "Systems/SystemManager.h"
 #include "Systems/TransformSystem.h"
@@ -103,6 +104,10 @@ bool Engine::InitializeServices() {
         // Register core systems
         systemManager.RegisterSystem<TransformSystem>(std::make_shared<TransformSystem>());
         BGE_LOG_INFO("Engine", "TransformSystem registered.");
+        
+        // Register core ECS components
+        RegisterCoreComponents();
+        BGE_LOG_INFO("Engine", "Core ECS components registered.");
         
         return true;
     }

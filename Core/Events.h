@@ -4,6 +4,7 @@
 #include <vector>
 #include "ECS/EntityID.h"
 #include "AssetTypes.h"
+#include "Math/Vector3.h"
 
 namespace BGE {
 
@@ -59,6 +60,15 @@ struct ApplicationStateChangedEvent {
     } state;
 };
 
+// Entity visibility changed event
+struct EntityVisibilityChangedEvent {
+    EntityID entityId;
+    bool isVisible;
+    
+    EntityVisibilityChangedEvent(EntityID id, bool visible) 
+        : entityId(id), isVisible(visible) {}
+};
+
 // AssetSelectionChangedEvent is now defined in AssetTypes.h
 
 // Material hover event for material inspector tooltip
@@ -72,6 +82,16 @@ struct MaterialHoverEvent {
     MaterialHoverEvent() = default;
     MaterialHoverEvent(uint32_t id, const std::string& name, const std::string& type, const std::vector<std::string>& tags, bool hovering)
         : materialID(id), materialName(name), materialType(type), materialTags(tags), isHovering(hovering) {}
+};
+
+// Focus camera on entity event
+struct FocusCameraEvent {
+    Vector3 position;
+    EntityID targetEntity;
+    float distance = 10.0f;  // Optional zoom distance
+    
+    FocusCameraEvent(const Vector3& pos, EntityID entity, float dist = 10.0f) 
+        : position(pos), targetEntity(entity), distance(dist) {}
 };
 
 } // namespace BGE

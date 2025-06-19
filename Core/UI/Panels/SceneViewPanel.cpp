@@ -244,9 +244,8 @@ void SceneViewPanel::RenderSceneContent() {
             // Handle gizmo input for selected entities
             if (m_showGizmos && !m_selectedEntities.empty() && m_primarySelection != INVALID_ENTITY) {
                 auto& entityManager = EntityManager::Instance();
-                Entity* entity = entityManager.GetEntity(m_primarySelection.GetIndex());
-                if (entity) {
-                    auto* transform = entity->GetComponent<TransformComponent>();
+                if (entityManager.IsEntityValid(m_primarySelection)) {
+                    auto* transform = entityManager.GetComponent<TransformComponent>(m_primarySelection);
                     if (transform) {
                         ImVec2 globalMousePos = ImGui::GetMousePos();
                         Vector2 mousePosVec(globalMousePos.x, globalMousePos.y);
@@ -254,10 +253,12 @@ void SceneViewPanel::RenderSceneContent() {
                         bool mouseHeld = ImGui::IsMouseDown(ImGuiMouseButton_Left);
                         bool mouseDragging = ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f);
                         
-                        // Update gizmo position
-                        m_gizmo2D->SetPosition(Vector2(transform->position.x, transform->position.y));
-                        m_gizmo2D->SetRotation(transform->rotation);
-                        m_gizmo2D->SetScale(Vector2(transform->scale.x, transform->scale.y));
+                        // Only update gizmo position from transform when not actively dragging
+                        if (m_gizmo2D->GetActiveAxis() == Gizmo2DAxis::None) {
+                            m_gizmo2D->SetPosition(Vector2(transform->position.x, transform->position.y));
+                            m_gizmo2D->SetRotation(transform->rotation);
+                            m_gizmo2D->SetScale(Vector2(transform->scale.x, transform->scale.y));
+                        }
                         
                         // Handle input
                         bool effectiveDragging = mouseDragging || (mouseHeld && m_gizmo2D->GetActiveAxis() != Gizmo2DAxis::None);
@@ -586,7 +587,9 @@ void SceneViewPanel::RenderGridOverlay(ImDrawList* drawList) {
 void SceneViewPanel::RenderEntitiesOverlay(ImDrawList* drawList) {
     auto& entityManager = EntityManager::Instance();
     
-    for (EntityID entityId : entityManager.GetAllEntityIDs()) {
+    auto allEntities = entityManager.GetAllEntityIDs();
+    
+    for (EntityID entityId : allEntities) {
         auto* transform = entityManager.GetComponent<TransformComponent>(entityId);
         if (!transform) continue;
         
@@ -724,9 +727,8 @@ void SceneViewPanel::RenderEditorOverlays() {
     if (m_showGizmos && m_transformGizmo && !m_selectedEntities.empty()) {
         // Get the primary selected entity
         auto& entityManager = EntityManager::Instance();
-        Entity* entity = entityManager.GetEntity(m_primarySelection.GetIndex());
-        if (entity) {
-            auto* transform = entity->GetComponent<TransformComponent>();
+        if (entityManager.IsEntityValid(m_primarySelection)) {
+            auto* transform = entityManager.GetComponent<TransformComponent>(m_primarySelection);
             if (transform) {
                 // Create view and projection matrices for 2D rendering
                 // For now, we'll use simple orthographic projection
@@ -749,10 +751,9 @@ void SceneViewPanel::RenderSelectionOutlines() {
     
     for (EntityID entityId : m_selectedEntities) {
         auto& entityManager = EntityManager::Instance();
-        Entity* entity = entityManager.GetEntity(entityId.GetIndex());
-        if (!entity) continue;
+        if (!entityManager.IsEntityValid(entityId)) continue;
         
-        auto* transform = entity->GetComponent<TransformComponent>();
+        auto* transform = entityManager.GetComponent<TransformComponent>(entityId);
         if (!transform) continue;
         
         // Convert world position to screen position
@@ -1027,10 +1028,9 @@ void SceneViewPanel::RenderGizmos() {
     if (m_selectedEntities.empty() || m_primarySelection == INVALID_ENTITY) return;
     
     auto& entityManager = EntityManager::Instance();
-    Entity* entity = entityManager.GetEntity(m_primarySelection.GetIndex());
-    if (!entity) return;
+    if (!entityManager.IsEntityValid(m_primarySelection)) return;
     
-    auto* transform = entity->GetComponent<TransformComponent>();
+    auto* transform = entityManager.GetComponent<TransformComponent>(m_primarySelection);
     if (!transform) return;
     
     // Convert gizmo mode
@@ -1077,10 +1077,9 @@ void SceneViewPanel::OnGizmoTransformChanged(const Vector3& position, const Quat
     if (!m_primarySelection) return;
     
     auto& entityManager = EntityManager::Instance();
-    Entity* entity = entityManager.GetEntity(m_primarySelection.GetIndex());
-    if (!entity) return;
+    if (!entityManager.IsEntityValid(m_primarySelection)) return;
     
-    auto* transform = entity->GetComponent<TransformComponent>();
+    auto* transform = entityManager.GetComponent<TransformComponent>(m_primarySelection);
     if (!transform) return;
     
     transform->position = position;
@@ -1090,14 +1089,27 @@ void SceneViewPanel::OnGizmoTransformChanged(const Vector3& position, const Quat
 }
 
 void SceneViewPanel::OnGizmo2DTransformChanged(const Vector2& position, float rotation, const Vector2& scale) {
-    if (!m_primarySelection) return;
+    if (!m_primarySelection) {
+        BGE_LOG_ERROR("SceneViewPanel", "OnGizmo2DTransformChanged: No primary selection");
+        return;
+    }
     
     auto& entityManager = EntityManager::Instance();
-    Entity* entity = entityManager.GetEntity(m_primarySelection.GetIndex());
-    if (!entity) return;
+    if (!entityManager.IsEntityValid(m_primarySelection)) {
+        BGE_LOG_ERROR("SceneViewPanel", "OnGizmo2DTransformChanged: Invalid entity");
+        return;
+    }
     
-    auto* transform = entity->GetComponent<TransformComponent>();
-    if (!transform) return;
+    auto* transform = entityManager.GetComponent<TransformComponent>(m_primarySelection);
+    if (!transform) {
+        BGE_LOG_ERROR("SceneViewPanel", "OnGizmo2DTransformChanged: No transform component");
+        return;
+    }
+    
+    // Debug log
+    BGE_LOG_DEBUG("SceneViewPanel", "Updating transform - Pos: (" + std::to_string(position.x) + ", " + 
+                  std::to_string(position.y) + "), Rot: " + std::to_string(rotation) + 
+                  ", Scale: (" + std::to_string(scale.x) + ", " + std::to_string(scale.y) + ")");
     
     // Update position (keep Z unchanged)
     transform->position.x = position.x;

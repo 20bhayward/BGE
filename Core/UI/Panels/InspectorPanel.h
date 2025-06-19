@@ -49,14 +49,14 @@ private:
     std::string OpenNativeFileDialog();
     
     // Individual component renderers
-    void RenderTransformComponent(Entity* entity, TransformComponent* component);
-    void RenderNameComponent(Entity* entity, NameComponent* component);
-    void RenderSpriteComponent(Entity* entity, SpriteComponent* component);
-    void RenderVelocityComponent(Entity* entity, VelocityComponent* component);
-    void RenderHealthComponent(Entity* entity, HealthComponent* component);
-    void RenderMaterialComponent(Entity* entity, MaterialComponent* component);
-    void RenderLightComponent(Entity* entity, LightComponent* component);
-    void RenderRigidbodyComponent(Entity* entity, RigidbodyComponent* component);
+    void RenderTransformComponent(EntityID entityId, TransformComponent* component);
+    void RenderNameComponent(EntityID entityId, NameComponent* component);
+    void RenderSpriteComponent(EntityID entityId, SpriteComponent* component);
+    void RenderVelocityComponent(EntityID entityId, VelocityComponent* component);
+    void RenderHealthComponent(EntityID entityId, HealthComponent* component);
+    void RenderMaterialComponent(EntityID entityId, MaterialComponent* component);
+    void RenderLightComponent(EntityID entityId, LightComponent* component);
+    void RenderRigidbodyComponent(EntityID entityId, RigidbodyComponent* component);
     
     // Component header with context menu
     bool RenderComponentHeader(const char* componentName, bool* removeRequested = nullptr);
@@ -80,6 +80,11 @@ private:
     // Component management
     void RemoveComponentFromEntity(EntityID entityId, const std::string& componentType);
     void AddComponentToEntity(EntityID entityId, const std::string& componentType);
+    
+    // Component copy/paste
+    void CopyComponent(EntityID entityId, const std::string& componentType);
+    void PasteComponent(EntityID entityId, const std::string& componentType);
+    bool CanPasteComponent(const std::string& componentType) const;
     
     // Selection state
     std::vector<EntityID> m_selectedEntities;
@@ -115,6 +120,14 @@ private:
     // Asset thumbnail management
     std::unordered_map<std::string, uint32_t> m_assetThumbnails; // Per-asset custom thumbnails
     uint32_t m_currentAssetTextureId = 0; // Currently loaded texture for preview
+    
+    // Component clipboard
+    struct ComponentClipboard {
+        std::string componentType;
+        std::vector<uint8_t> componentData;
+        bool hasData = false;
+    };
+    static ComponentClipboard s_componentClipboard;
 };
 
 } // namespace BGE

@@ -233,12 +233,15 @@ bool Gizmo2D::HandleInput(const Vector2& mousePos, bool mouseDown, bool mouseDra
             }
             
             case Gizmo2DMode::Scale: {
-                float scaleDelta = (delta.x + delta.y) * 0.01f;
                 if (m_activeAxis == Gizmo2DAxis::X) {
+                    float scaleDelta = delta.x * 0.01f;
                     m_scale.x = std::max(0.1f, m_initialScale.x + scaleDelta);
                 } else if (m_activeAxis == Gizmo2DAxis::Y) {
+                    // Negate delta.y because screen Y goes down but we want up to increase scale
+                    float scaleDelta = -delta.y * 0.01f;
                     m_scale.y = std::max(0.1f, m_initialScale.y + scaleDelta);
                 } else if (m_activeAxis == Gizmo2DAxis::Both) {
+                    float scaleDelta = (delta.x - delta.y) * 0.01f; // Use X-Y to make diagonal dragging intuitive
                     m_scale.x = std::max(0.1f, m_initialScale.x + scaleDelta);
                     m_scale.y = std::max(0.1f, m_initialScale.y + scaleDelta);
                 }

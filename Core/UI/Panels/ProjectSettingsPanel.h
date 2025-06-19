@@ -33,7 +33,8 @@ enum class SettingsSection {
     Rendering,
     Input,
     Audio,
-    Performance
+    Performance,
+    HierarchyView
 };
 
 class ProjectSettingsPanel {
@@ -85,7 +86,13 @@ private:
     void RenderInputSettings();
     void RenderAudioSettings();
     void RenderPerformanceSettings();
+    void RenderHierarchyViewSettings();
     void RenderAssetTypeRow(AssetType type, const char* typeName);
+    
+    // Hierarchy view settings
+    bool IsShowingHierarchyIcons() const { return m_showHierarchyIcons; }
+    bool IsShowingHierarchyVisibilityToggles() const { return m_showHierarchyVisibilityToggles; }
+    bool IsShowingHierarchyLockToggles() const { return m_showHierarchyLockToggles; }
     
     // File operations
     void OpenThumbnailFileDialog(AssetType type);
@@ -124,6 +131,11 @@ private:
     // Save feedback
     bool m_showSaveMessage = false;
     float m_saveMessageTimer = 0.0f;
+    
+    // Hierarchy view settings
+    bool m_showHierarchyIcons = true;
+    bool m_showHierarchyVisibilityToggles = true;
+    bool m_showHierarchyLockToggles = true;
     
     // Services
     EventBus* m_eventBus = nullptr;
